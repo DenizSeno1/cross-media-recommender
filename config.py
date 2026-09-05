@@ -37,8 +37,28 @@ TOP_K = 5                                          # kullaniciya kac oneri
 ADAY = 50                                          # HyDE aday havuzu (rerank girdisi)
 
 # --- kisisellestirme (Gun 12-15, 2026-09-04) ---
-PROFIL_AKTIF = True      # kullanici listesi varsa profil harmanlanir; yoksa duz sorgu aramasi
-PROFIL_AGIRLIGI = 0.6    # harmanda profilin payi (0=sadece sorgu, 1=sadece profil)
+PROFIL_AKTIF = True      # SADECE app.py'deki "Kisisellestirmeyi kullan" kutusunun varsayilani.
+                         # B1b (09-05): retrieval artik bu bayragi OKUMUYOR — profil ya
+                         # `getir(profil_paketi=...)` ile verilir ya verilmez. Gizli
+                         # varsayilan dosya yok, "kimin profili" sorusu cagirana ait.
+PROFIL_AGIRLIGI = 0.2    # harmanda profilin payi (0=sadece sorgu, 1=sadece profil)
+                         # 0.6 -> 0.2 (2026-09-05, izle.py ile uc deger yan yana kosuldu).
+                         # 0.6 GOZLEMLE secilmisti (medya dagilimina bakilarak) ve icerikli
+                         # bir sorguda oneriyi IYILESTIRIP iyilestirmedigi hic olculmemisti:
+                         # eval kisisellestirme KAPALI kosuyor, holdout ise SORGUSUZ yolu
+                         # olcuyor -> "sorgu + profil" yolu olcunun disinda kalmisti.
+                         #   agirlik  aci    ilk-5 medyasi        1. sira
+                         #   0.0      0°     anime+kitap+film     Garden of Remembrance
+                         #   0.2      6.8°   anime x3+kitap+film  Garden of Remembrance
+                         #   0.3     10.4°   anime x4+kitap       Shin no Nakama...
+                         #   0.6     21.2°   anime x5             (dogru tepe LISTEDEN DUSTU)
+                         # Sorgu: "olum ve yas uzerine sakin fantastik yolculuk".
+                         # 0.6'da pusula sorguyu TERK EDIYOR (maskesiz tepe KonoSuba oluyor).
+                         # 0.2 tasarimin iddia ettigi seyi yapiyor: 09-04'un "6 derece, INCE
+                         # AYAR" gerekcesi aslinda bu agirliga denk geliyormus, 0.6'ya degil.
+                         # Ayrica capraz medyayi kota zorlamasina gerek kalmadan koruyor.
+                         # ⚠️ Kanit GOZLE BAKMA (tek sorgu, tek profil), olcum degil — ama
+                         # 0.6'nin arkasinda da olcum yoktu ve desen monoton.
 K_ADA = 10               # K-means zevk adasi sayisi. Tek ortalama bant 0.0068 -> adalar medyan
                          # 0.0322 (5x ayrim gucu). Olculdu 2026-09-04.
 SERI_TEKILLESTIR = True  # ayni franchise'tan tek sonuc (AniList relations grafi)
@@ -54,6 +74,10 @@ KOTA = {"anime": 3, "film": 1, "kitap": 1}
 HYDE_AKTIF = True      # recall@5 0 -> 0.364, kazandi (Gun 10-11)
 HYDE_N_ORNEK = 1       # kac sahte belge uretilip ortalanacak (HyDE makalesinin cok-orneklem hali).
                        # varsayilan 1 = mevcut davranis. PILOT: 5 ile varyans azaltma denemesi.
+HYDE_CIPA = 0.0        # A11: pusula ortalamasina HAM SORGU vektorunu de kat (HyDE makalesinin
+                       # yaptigi, bizim atladigimiz adim). 0.0 = cipa yok (09-04'e kadarki hal),
+                       # 1.0 = sadece ham sorgu (recall@5 = 0, Gun 10-11). Makale esit agirlikli
+                       # ortalama aliyor -> N sahte belge icin cipa = 1/(N+1).
 RERANK_AKTIF = False   # +0.18 recall@5 AMA ~1.5-3 dk/sorgu CPU -> varsayilan KAPALI.
                        # GPU / kucuk reranker / hosted API olursa ac.
 

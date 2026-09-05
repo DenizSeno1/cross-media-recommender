@@ -22,6 +22,7 @@ sorgu = 0.091 -> bu setin cozunurlugu 0.091, bundan kucuk kazanc olculemez.
 """
 
 import argparse
+import math
 
 import config
 import profil
@@ -163,18 +164,19 @@ def degerlendir(altin_set=ALTIN_SET, k_listesi=(5, 10, 50), hyde_cache=True,
     toplam_mrr = 0.0
 
     print(f"konfig: hyde={config.HYDE_AKTIF} hyde_n={getir_ayar.get('hyde_n', config.HYDE_N_ORNEK)} "
+          f"cipa={getir_ayar.get('cipa', config.HYDE_CIPA)} "
           f"cache={hyde_cache} kota={kota} tekil={tekillestir} eslesme={'franchise' if franchise else 'kati'} "
           f"rerank={getir_ayar.get('rerank', config.RERANK_AKTIF)} "
           f"medya={getir_ayar.get('medya')} aday={config.ADAY} "
           f"kaynak={config.ANIME_KAYNAK} cihaz={retrieval.CIHAZ}")
 
     for sorgu, beklenen_ham in altin_set:
-        # kisisel=False: altin set "sorgu -> su anime" olcuyor; kisisellestirme hedeften
+        # profil_paketi=None: altin set "sorgu -> su anime" olcuyor; kisisellestirme hedeften
         # uzaklastirir, recall@k onu degerlendiremez (yanlis seyi olcer, bkz. B4).
         # AMA kota/tekillestirme SUNUM kurallari ve URUNDE hep aktif -> eval de onlardan
         # gecmeli, yoksa olctugumuz hat urunun hatti degil (A1 dersi).
         sonuc = retrieval.getir(sorgu, k=en_buyuk, hyde_cache=hyde_cache,
-                                kisisel=False, kota=kota, tekillestir=tekillestir,
+                                profil_paketi=None, kota=kota, tekillestir=tekillestir,
                                 **getir_ayar)
         gelen = [_kimlik(r, franchise) for r in sonuc]
         beklenen = [_kimlik(_gold_kayit(g), franchise) for g in beklenen_ham]
@@ -193,12 +195,125 @@ def degerlendir(altin_set=ALTIN_SET, k_listesi=(5, 10, 50), hyde_cache=True,
     return {**{f"recall@{k}": toplam_recall[k] / n for k in k_listesi}, "MRR": toplam_mrr / n}
 
 
+# ---------------------------------------------------------------------------
+# A14 — SIRA TABANLI KARSILASTIRMA (2026-09-05)
+#
+# Neden: recall@k ESIKLI bir olcu. Yalnizca "5. sira cizgisini gecti mi" diye
+# soruyor; 22->3 ile 21->11'i ayni torbaya koyuyor ve ikincisini SIFIR sayiyor.
+# 09-05'te olculdu: cipa 8 sorguyu oynatti, recall@5 bunlardan 2'sini gordu.
+#
+# TASARIM KARARI (mentor, 09-05): KARAR olcusu ISARET TESTI, Delta-sira sadece
+# BETIMLEYICI. Gerekce: bir olcuden istenen ilk sey "gercek mi, gurultu mu" ve
+# isaret testi bunu KENDI gurultu modeliyle cevapliyor (binom) — recall@k icin
+# gurultu tabanini ayrica olcmek zorunda kalmistik (09-03, ayri kosu).
+# Delta-sira'nin ilkeli bir esigi YOK ve '-' kayitlari icin sira uydurmak
+# gerekiyor (51? 100?) -> karar veremez, betimler.
+# Bir olcu karar verir, digerleri betimler. Iki olcuyu esit yetkiyle masaya
+# koyarsan celistiklerinde hangisinin kazandigi belirsiz kalir. (bkz. B4)
+# ---------------------------------------------------------------------------
+
+def siralar(altin_set=ALTIN_SET, k=50, franchise=True, hyde_cache=True, **getir_ayar):
+    """Her sorgu icin gold'un kacinci sirada geldigi (top-k icinde yoksa None).
+
+    hyde_cache VARSAYILAN True — degerlendir() ile ayni gerekce: getir()'in kendi
+    varsayilani False (URUN modu), o yuzden burada ACIKCA verilmezse iki konfig iki
+    AYRI HyDE cekilisiyle kosar ve isaret testi LLM gurultusunu degisiklige yazar."""
+    cikti = []
+    for sorgu, beklenen_ham in altin_set:
+        sonuc = retrieval.getir(sorgu, k=k, profil_paketi=None,
+                                hyde_cache=hyde_cache, **getir_ayar)
+        gelen = [_kimlik(r, franchise) for r in sonuc]
+        # TUM gold'lar, en iyi (en kucuk) sira. Sadece beklenen_ham[0]'a bakmak,
+        # degerlendir()'in tamamini puanlamasiyla celisiyordu: cok-gold'lu bir girdi
+        # eklendiginde (kitap gold'lari karar bekliyor) ikinci gold'un 40 -> 2 hareketi
+        # sessizce "berabere" sayilip isaret testinden DUSERDI. Karar olcusunun kendisi
+        # gormedigini gorunmez sanar — fazin sessiz hata sinifi.
+        bulunan = [gelen.index(h) + 1
+                   for h in (_kimlik(_gold_kayit(g), franchise) for g in beklenen_ham)
+                   if h in gelen]
+        cikti.append(min(bulunan) if bulunan else None)
+    return cikti
+
+
+def isaret_testi(once, sonra):
+    """Iki sira listesini karsilastir: kac yukari, kac asagi, iki yonlu binom p.
+
+    '-' (None) ele alinisi: ikisi de None -> BERABERE (disarida). Biri None ise
+    o taraf digerinden kotu sayilir. Beraberlikler testten DUSER — isaret
+    testinin tanimi budur ve None'lar icin sayi uydurmak gerekmez.
+
+    Null hipotez: degisiklik notrse, YER DEGISTIREN her sorgunun yukari ya da
+    asagi gitmesi esit olasilikli (p=0.5). Iki yonlu p = sansin bu kadar veya
+    daha uc bir dagilim uretme olasiligi. recall@k'nin aksine bu esik AMPIRIK
+    DEGIL — ayri bir gurultu tabani kosusu gerektirmiyor."""
+    yukari = asagi = berabere = 0
+    for a, b in zip(once, sonra):
+        if a == b:
+            berabere += 1
+        elif a is None:
+            yukari += 1               # havuza girdi
+        elif b is None:
+            asagi += 1                # havuzdan dustu
+        elif b < a:
+            yukari += 1               # sira kucuk = daha iyi
+        else:
+            asagi += 1
+    n = yukari + asagi
+    if n == 0:
+        return {"yukari": 0, "asagi": 0, "berabere": berabere, "n": 0, "p": 1.0}
+    uc = max(yukari, asagi)
+    kuyruk = sum(math.comb(n, i) for i in range(uc, n + 1)) / 2 ** n
+    return {"yukari": yukari, "asagi": asagi, "berabere": berabere, "n": n,
+            "p": min(1.0, 2 * kuyruk)}
+
+
+def delta_sira(once, sonra):
+    """BETIMLEYICI (karar vermez): iki tarafta da sirasi bilinen sorgularda
+    ortalama sira kazanci. '-' iceren ciftler DISARIDA — sira uydurmuyoruz."""
+    ciftler = [(a, b) for a, b in zip(once, sonra) if a is not None and b is not None]
+    if not ciftler:
+        return None, 0
+    return sum(a - b for a, b in ciftler) / len(ciftler), len(ciftler)
+
+
+def karsilastir(ad_a, ayar_a, ad_b, ayar_b, altin_set=ALTIN_SET, k=50, franchise=True):
+    """Iki konfigi sorgu bazinda karsilastir, isaret testi + Delta-sira bas."""
+    a, b = (siralar(altin_set, k, franchise, **ayar_a),
+            siralar(altin_set, k, franchise, **ayar_b))
+    print()
+    print(f"{ad_a}  ->  {ad_b}")
+    print(f"{'sorgu':<50} {'once':>6} {'sonra':>6}   ne oldu")
+    print("-" * 82)
+    for (sorgu, _), sa, sb in zip(altin_set, a, b):
+        if sa == sb:
+            not_ = ""
+        else:
+            iyi = (sa is None) or (sb is not None and sb < sa)
+            gecti = ""
+            if (sa is not None and sa <= 5) != (sb is not None and sb <= 5):
+                gecti = "  >>> TOP-5'E GIRDI" if (sb is not None and sb <= 5) else "  <<< TOP-5'TEN CIKTI"
+            not_ = ("yukari" if iyi else "asagi") + gecti
+        print(f"{sorgu[:48]:<50} {str(sa or '-'):>6} {str(sb or '-'):>6}   {not_}")
+
+    t = isaret_testi(a, b)
+    d, kac = delta_sira(a, b)
+    print("-" * 82)
+    print(f"  KARAR  isaret testi: {t['yukari']} yukari / {t['asagi']} asagi / "
+          f"{t['berabere']} berabere  ->  p = {t['p']:.3f}"
+          f"   {'ORUNTU (p<0.05)' if t['p'] < 0.05 else 'gurultudan ayirt edilemiyor'}")
+    print(f"  betim  ortalama Delta-sira: {d:+.2f} ({kac} sorguda, '-' iceren ciftler harictir)"
+          if d is not None else "  betim  Delta-sira: hesaplanamadi")
+    return t, d
+
+
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description="Retrieval eval (11 sorgu altin set)")
     p.add_argument("--rerank", action="store_true", help="cross-encoder rerank ac")
     p.add_argument("--medya", default=None, choices=["anime", "film", "kitap"],
                    help="medya filtresi (Gun 10-11 ile kiyas icin: anime)")
     p.add_argument("--hyde-n", type=int, default=config.HYDE_N_ORNEK)
+    p.add_argument("--cipa", type=float, default=config.HYDE_CIPA,
+                   help="A11: pusula ortalamasinda ham sorgunun payi (0=cipa yok, 1/(n+1)=makale)")
     p.add_argument("--kati", action="store_true",
                    help="eski KATI eslestirme (kanonik idMal); varsayilan franchise duzeyi")
     p.add_argument("--kotasiz", action="store_true", help="medya kotasini kapat (eski baseline)")
@@ -225,6 +340,6 @@ if __name__ == "__main__":
 
     gold_dogrula()
     degerlendir(k_listesi=k_listesi, rerank=a.rerank, medya=a.medya,
-                hyde_n=a.hyde_n, hyde_cache=not a.no_cache,
+                hyde_n=a.hyde_n, cipa=a.cipa, hyde_cache=not a.no_cache,
                 kota=not a.kotasiz, tekillestir=not a.tekilsiz,
                 franchise=not a.kati)

@@ -35,10 +35,14 @@ def liste_yukle(xml_yolu: Path | str | None = None) -> list[dict]:
     series_animedb_id = MAL id -> corpus'un idMal'iyle birebir eslesir.
     my_score 0-10 (0 = puanlanmamis). my_status = Completed/Watching/Dropped/Plan to Watch.
     """
-    yol = Path(xml_yolu) if xml_yolu else config.XML_LISTE
-    if not yol.exists():
-        return []                                   # profil yok -> duz sorgu aramasi
-    kok = ET.parse(yol).getroot()
+    if xml_yolu is not None and not isinstance(xml_yolu, (str, Path)):
+        kaynak = xml_yolu                           # dosya-benzeri (Streamlit uploader)
+    else:
+        yol = Path(xml_yolu) if xml_yolu else config.XML_LISTE
+        if not yol.exists():
+            return []                               # profil yok -> duz sorgu aramasi
+        kaynak = yol
+    kok = ET.parse(kaynak).getroot()
     return [{
         "idMal": int(a.findtext("series_animedb_id")),
         "baslik": a.findtext("series_title"),

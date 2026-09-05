@@ -34,7 +34,10 @@ _reranker = None
 _V = None
 _corpus = None
 _belgeler = None
-_profil = None          # (adalar, izlenen_maske) — KULLANICI listesine bagli
+# NOT: profil BILEREK global degil (B1b, 2026-09-05). Indeks surece aittir — agir,
+# paylasimli, kullanicidan bagimsiz. Profil KULLANICI OTURUMUNA aittir. Modul-duzeyi
+# bir global ikisini ayni kapsamda tutuyordu: Streamlit tek surecte donuyor, o yuzden
+# demoyu acan HERKES ilk yuklenen listenin zevkini aliyordu — sessizce.
 _gruplar = None         # {AniList id: grup_no} — relations dosyasina bagli, profilden BAGIMSIZ
 _medya_maske = None     # {"anime": bool dizi, ...} — "bu kayit o medyada DEGIL" maskesi
 
@@ -79,30 +82,33 @@ def _seri_gruplari():
     return _gruplar
 
 
-def _kullanici_profili(V, corpus):
-    '''(zevk adalari, izlenen-seri maskesi). Liste yoksa/cekirdek yetersizse (None, None).
+def profil_kur(xml_kaynak=None):
+    """MAL listesinden profil paketi kur: (zevk_adalari, izlenen_seri_maskesi).
 
-    Kisisellestirme opsiyonel bir KATMAN; urunun onsuz da calismasi gerekiyor.'''
-    global _profil
-    if _profil is not None:
-        return _profil
-    liste = profil.liste_yukle()
+    SAF fonksiyon — hicbir global yazmiyor. Cagiran sonucu SAHIPLENIR ve `getir`'e
+    `profil_paketi=` ile verir; boylece profilin kapsamini cagiran belirler
+    (Streamlit'te st.session_state = tarayici oturumu, CLI'da yerel degisken).
+
+    xml_kaynak: yol ya da dosya-benzeri nesne (Streamlit uploader). None ise
+        config.XML_LISTE. Liste yoksa ya da cekirdek yetersizse (None, None) doner —
+        kisisellestirme opsiyonel bir KATMAN, urun onsuz da calismali.
+
+    Maliyet: K-means + maske. Sorgu basina degil, LISTE basina bir kez cagrilmali."""
+    model, V, corpus, _ = _hazirla()
+    liste = profil.liste_yukle(xml_kaynak)
     if not liste:
         print("kullanici listesi yok -> kisisellestirme kapali")
-        _profil = (None, None)
-        return _profil
+        return (None, None)
     idmal_satir = {m["idMal"]: i for i, m in enumerate(corpus) if m["media"] == "anime"}
     satirlar = [idmal_satir[i] for i in profil.cekirdek_idler(liste, set(idmal_satir))]
     if len(satirlar) < max(profil.MIN_CEKIRDEK, config.K_ADA):
         print(f"cekirdek yetersiz ({len(satirlar)}) -> kisisellestirme kapali")
-        _profil = (None, None)
-        return _profil
+        return (None, None)
     adalar = profil.zevk_adalari(V, satirlar, config.K_ADA)
     maske = profil.izlenen_seri_maskesi(corpus, profil.izlenen_idler(liste), _seri_gruplari())
     print(f"profil: {len(satirlar)} cekirdek, {config.K_ADA} zevk adasi, "
           f"{int(maske.sum())} kayit elendi (izlenen seriler)")
-    _profil = (adalar, maske)
-    return _profil
+    return (adalar, maske)
 
 
 def _index(belgeler, model):
@@ -157,7 +163,8 @@ def _hyde_belge(sorgu: str) -> str:
     return llm.cagir([{"role": "user", "parts": [{"text": prompt}]}]).strip()
 
 
-def _hyde_vektor(sorgu: str, model, n: int, cache: bool = False) -> tuple[np.ndarray, str]:
+def _hyde_vektor(sorgu: str, model, n: int, cache: bool = False,
+                 cipa: float = 0.0) -> tuple[np.ndarray, str]:
     """N sahte belge uret, HER BIRINI AYRI goem, vektorlerin ORTALAMASINI al.
 
     Neden: tek sahte belge tek bir icat = yuksek varyans (Kusuriya sorgusu iki ayri
@@ -186,6 +193,25 @@ def _hyde_vektor(sorgu: str, model, n: int, cache: bool = False) -> tuple[np.nda
     ortalama = np.mean(vektorler, axis=0)
     norm = np.linalg.norm(ortalama)
     q = ortalama / norm if norm > 0 else ortalama
+
+    # --- A11 CIPA (2026-09-05) ------------------------------------------------
+    # HyDE makalesi (Gao ve ark.) ortalamaya HAM SORGU vektorunu de katiyor; biz
+    # atlamistik. Ham sorgu TEK BASINA recall@5 = 0 veriyor (Gun 10-11) — katkisi
+    # "yon gostermek" degil, pusulayi GERI CEKMEK: sahte belgenin kendine ozgu
+    # uydurmasini gercekten sorulan seye dogru duzeltmek.
+    # Kazanc olmasi icin cipa vektorunun sahte belge vektorlerine YAKIN olmasi
+    # gerekir (09-04'un kurali: ortalananlar yakinsa gurultu soner, uzaksa sinyal
+    # soner). Bu olcum tam olarak o kuralin sinavi.
+    #
+    # (2026-09-05: ELLE listesindeydi, Deniz'in istegiyle mentor yazdi.)
+    # Ham sorgu YUKARIDAKIYLE AYNI bicimde gomuluyor ("query:" onek + normalize):
+    # e5 asimetrik bir model, sorgu ve belge farkli rollerde; bicim tutmazsa cipa
+    # pusulayi duzeltmez, baska bir mahalleye tasir.
+    # Harman profil.harmanla ile — ayni sekil, ikinci kez yazilmiyor.
+    if cipa > 0:
+        ham = model.encode("query: " + sorgu, normalize_embeddings=True)
+        q = profil.harmanla(q, ham, cipa)
+
     return q, sahteler[0]
 
 
@@ -199,7 +225,7 @@ def _yeniden_sirala(sorgu_metni, aday_idx, belgeler, reranker, k):
 
 def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
           rerank: bool = config.RERANK_AKTIF, hyde_n: int = config.HYDE_N_ORNEK,
-          hyde_cache: bool = False, kisisel: bool = config.PROFIL_AKTIF,
+          cipa: float = config.HYDE_CIPA, hyde_cache: bool = False, profil_paketi=None,
           profil_agirligi: float = config.PROFIL_AGIRLIGI,
           kota: bool = True, tekillestir: bool = config.SERI_TEKILLESTIR) -> list[dict]:
     """Sorguya en uygun k kaydi dondurur (KAYDIN KENDISI, skorla birlikte '_skor' alani).
@@ -207,9 +233,14 @@ def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
     medya: Belirli bir medya turu filtrelenmek istenirse siralamadan once uygulanir.
     rerank: True ise ADAY havuzu cross-encoder ile yeniden siralanir (yavas, GPU'da ac).
     hyde_n: kac sahte belge uretilip ortalanacak (1=eski davranis, PILOT: 5).
-    kisisel: True ise zevk profili devreye girer (ada secimi + harman + izlenen-seri filtresi).
-        eval'de KAPALI tutulur: altin set "sorgu -> su anime" olcuyor, kisisellestirme
-        tanimi geregi hedeften uzaklastirir; recall@k ile ayarlanamaz (bkz. B4).
+    cipa: pusula ortalamasinda HAM SORGU vektorunun payi (A11). 0=cipa yok,
+        1/(N+1)=HyDE makalesinin esit agirlikli hali, 1.0=sadece ham sorgu (recall 0).
+    profil_paketi: profil_kur() ciktisi (adalar, izlenen_maske) ya da None.
+        None ise kisisellestirme KAPALI — gizli varsayilan dosya YOK, bayrak da yok:
+        profil ya verilir ya verilmez (B1b, 09-05). Eskiden `kisisel: bool` idi ve
+        profili modul globalinden okuyordu; o tasarim "kimin profili" sorusunu
+        cevaplayamiyordu. eval'de her zaman None: altin set "sorgu -> su anime"
+        olcuyor, kisisellestirme tanimi geregi hedeften uzaklastirir (bkz. B4).
     profil_agirligi: harmanda profilin payi (0=sadece pusula, 1=sadece profil).
     kota / tekillestir: SUNUM kurallari — kisisellestirmeden BAGIMSIZ, profili olmayan
         kullanicida da gecerli. `kisisel` ile ayni bayraga baglamak mimari hataydi.
@@ -220,7 +251,7 @@ def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
 
     # 1) HyDE: sahte belge(ler) pusula -> query prefix ile gom (e5 asimetrik, sorgu rolu 'query:')
     if config.HYDE_AKTIF:
-        q, sahte = _hyde_vektor(sorgu, model, hyde_n, cache=hyde_cache)
+        q, sahte = _hyde_vektor(sorgu, model, hyde_n, cache=hyde_cache, cipa=cipa)
     else:
         q = model.encode("query: " + sorgu, normalize_embeddings=True)
         sahte = sorgu
@@ -229,8 +260,8 @@ def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
     #     Neden en yakin ada: tek ortalama profil sorguyu baska yere CEKER (30 derece sapma
     #     olculdu); en yakin ada zaten sorgunun mahallesinde, INCE AYAR yapar (6 derece).
     izlenen_maske = None
-    if kisisel:
-        adalar, izlenen_maske = _kullanici_profili(V, corpus)
+    if profil_paketi is not None:
+        adalar, izlenen_maske = profil_paketi
         if adalar is not None:
             q = profil.harmanla(q, profil.en_yakin_ada(adalar, q), profil_agirligi)
 
@@ -289,6 +320,80 @@ def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
             profil.kota_olcekle(config.KOTA, k) if kotali else None)
 
     return [dict(corpus[i], _skor=puan[i]) for i in aday_idx[:k]]
+
+
+def getir_profilden(profil_paketi, k: int = config.TOP_K, medya: str | None = None,
+                    kota: bool = True, tekillestir: bool = config.SERI_TEKILLESTIR) -> list[dict]:
+    """Sorgu YOK — oneri dogrudan zevk adalarindan gelir. (B5, 2026-09-05)
+
+    Neden ayri bir yol: "bana listeme gore oner" gibi bir istegin ICERIGI sifirdir.
+    HyDE onu besleyecek malzeme bulamayinca yoktan bir olay orgusu uyduruyor
+    (09-05'te loglandi: "former rivals... catastrophic timeline collapse across
+    parallel dimensions" — listeyle ilgisi yok) ve hat o uydurmayi ariyor.
+    Icerik sorguda degil LISTEDE; o yuzden burada pusula da listeden geliyor.
+
+    SIFIR LLM cagrisi: ada secimi bir mesafe sorusu, uydurmaya ihtiyac yok.
+
+    Adalar arasi SIRAYLA (round-robin) seciliyor — her adadan sirayla bir aday.
+    Tek adadan k tane almak 09-04'un tersi hatasi olurdu: tek ortalama ayrimi
+    oldururken, tek ada CESITLILIGI oldurur. Cesitlilik burada bedava geliyor.
+
+    Donus: getir() ile AYNI sekil + '_ada' (hangi zevk adasindan geldigi).
+    """
+    adalar, izlenen_maske = profil_paketi
+    if adalar is None:
+        return []
+    model, V, corpus, _ = _hazirla()
+
+    skorlar = adalar @ V.T                       # (ada, 7807)
+    if izlenen_maske is not None:
+        skorlar[:, izlenen_maske] = -np.inf      # izledigin seri ve turevleri disarida
+    if medya is not None:
+        skorlar[:, _medya_maskeleri(corpus)[medya]] = -np.inf
+
+    kotali = kota and medya is None
+    hedef = profil.kota_olcekle(config.KOTA, k) if kotali else None
+    gruplar = _seri_gruplari() if tekillestir else {}
+
+    # Havuz KIRPILMIYOR — tum corpus. Ilk surumde k*ada kadar kirpilmisti ve medya
+    # kotasi DOLMUYORDU: adalar anime cekirdeginden kuruldugu icin her adanin ilk
+    # yuzlercesi anime; film/kitap havuza hic girmiyordu (09-04'te olculen yapisal
+    # dagilim sorununun bu yoldaki hali). Kota bir TAVAN, kendi basina slot doldurmaz.
+    # Maliyet: 10 x 7807 argsort, milisaniye.
+    havuz = len(corpus)
+    siralar = [list(np.argsort(-satir)[:havuz]) for satir in skorlar]
+    imlec = [0] * len(adalar)
+
+    secilen, secilen_grup, sayac = [], set(), {}
+    ada = 0
+    while len(secilen) < k and any(i < havuz for i in imlec):
+        for _ in range(len(adalar)):             # bos/tikanmis adayi atla, sirayi bozma
+            if imlec[ada] < havuz:
+                break
+            ada = (ada + 1) % len(adalar)
+        else:
+            break
+        i = int(siralar[ada][imlec[ada]])
+        imlec[ada] += 1
+        m = corpus[i]
+        # AD-ALANI: `gruplar` AniList id'siyle anahtarli, film TMDB / kitap Google Books
+        # id tasiyor. Guardsiz lookup ad-alanlarini karistiriyordu: 253 film id'si bir
+        # AniList id'siyle cakisiyor (Godfather 238, Matrix 603, LOTR 120/121/122) ->
+        # film bir ANIME'nin franchise'inda sanilip sessizce eleniyor, capraz medya slotu
+        # bosa dusuyordu. kota_sec() ayni korumayi zaten yapiyor, bu yol atlamisti.
+        g = gruplar.get(m["id"]) if m["media"] == "anime" else None
+        if g is None:
+            g = ("tek", i)              # film/kitap ve iliskisiz anime: her biri biricik
+        if g in secilen_grup or any(r["_i"] == i for r in secilen):
+            continue                             # ayni seri ya da zaten secilmis
+        if hedef is not None and sayac.get(m["media"], 0) >= hedef.get(m["media"], 0):
+            continue                             # medya kotasi doldu
+        secilen.append({"_i": i, "_skor": float(skorlar[ada][i]), "_ada": ada})
+        secilen_grup.add(g)
+        sayac[m["media"]] = sayac.get(m["media"], 0) + 1
+        ada = (ada + 1) % len(adalar)
+
+    return [dict(corpus[r["_i"]], _skor=r["_skor"], _ada=r["_ada"]) for r in secilen]
 
 
 if __name__ == "__main__":

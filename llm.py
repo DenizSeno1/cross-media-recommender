@@ -39,6 +39,11 @@ class Sayac:
         self.cikti = 0
         self.cagri = 0
 
+    def sifirla(self):
+        """Sorgu BASI maliyet icin. Kumulatif sayac UI'da "bu sorgu ne tuttu"
+        sorusunu cevaplayamiyordu (C3); app.py her kosudan once sifirliyor."""
+        self.__init__()
+
     def ekle(self, kullanim):
         self.girdi += kullanim.get("promptTokenCount", 0)
         self.cikti += kullanim.get("candidatesTokenCount", 0)
