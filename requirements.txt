@@ -1,0 +1,11 @@
+# Gelistirme ortaminda kurulu surumler (2026-09-06).
+# torch burada CPU surumu olarak birakildi: rerank varsayilan KAPALI oldugu icin
+# (bkz. config.RERANK_AKTIF) CPU yeterli. GPU icin pytorch.org'un kendi index'ini kullan.
+
+sentence-transformers==6.0.0
+torch==2.11.0
+numpy==2.5.1
+scikit-learn==1.9.0
+streamlit==1.63.0
+requests==2.34.2
+python-dotenv==1.2.2

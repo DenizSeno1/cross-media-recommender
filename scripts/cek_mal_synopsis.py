@@ -11,15 +11,17 @@ Public alan -> sadece X-MAL-CLIENT-ID header, OAuth yok.
 
 import json
 import os
+import sys
 import time
 from pathlib import Path
 
 import requests
 from dotenv import load_dotenv
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/ -> repo koku
 import config
 
-load_dotenv(config.VERI.parent / ".env")          # faz4/.env
+load_dotenv(config.KOK / ".env")
 CID = os.environ.get("MAL_CLIENT_ID")
 if CID is None:
     raise RuntimeError("MAL_CLIENT_ID .env icinde yok")

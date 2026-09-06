@@ -27,6 +27,46 @@ bir arada. Altta çağrı/token/maliyet sayacı.*
 
 ---
 
+## Kurulum
+
+```bash
+python -m venv .venv && source .venv/Scripts/activate
+```
+
+```bash
+pip install -r requirements.txt
+```
+
+```bash
+cp .env.example .env
+```
+
+`.env`'e en az **`GEMINI_API_KEY`** gerekiyor (Google AI Studio, ücretsiz katman) — HyDE sahte
+belgesi ve öneri gerekçesi oradan üretiliyor.
+
+### Veri
+
+**Corpus repoda yok** (13 MB, üçüncü taraf verisi). `scripts/` altındaki çekiciler `data/`
+klasörünü doldurur; hepsi **resumable** — yarıda kesilirse kaldığı yerden devam eder.
+
+```bash
+python scripts/cek_anilist.py && python scripts/cek_anilist_relations.py && python scripts/cek_mal_synopsis.py
+```
+
+```bash
+python scripts/cek_tmdb.py && python scripts/cek_books.py
+```
+
+Film/kitap çekicileri `TMDB_API_KEY` ve `GOOGLE_BOOKS_API_KEY`, MAL sinopsis çekicisi
+`MAL_CLIENT_ID` ister. Rate limit'e nazik davranıyorlar; ilk tam çekim saatler sürer —
+**bir kez koşulur, sonuç dondurulur.**
+
+İlk açılışta 7807 kayıt gömülür (CPU'da birkaç dakika) ve `cache/*.npy` olarak saklanır;
+sonraki açılışlar onu okur.
+
+> `cache/hyde/` **bilerek repoda**: 47 dondurulmuş sahte belge. `eval.py`'nin tekrarlanabilir
+> olması buna bağlı — ölçüm dondurulur, ürün rastgele kalır.
+
 ## Çalıştırma
 
 ```bash
@@ -76,7 +116,8 @@ sorgu YOKSA ──▶ zevk adaları ──▶ adalar arası round-robin ──�
 | `eval.py` | altın set, `recall@k`, `MRR`, işaret testi, sorgu-bazlı karşılaştırma |
 | `holdout.py` | "iyi öneri" ölçütü — tut-bırak |
 | `app.py` | Streamlit arayüzü |
-| `cek_*.py` | corpus çekme (bir kez koşulur, sonuç dondurulur) |
+| `scripts/cek_*.py` | corpus çekme (bir kez koşulur, sonuç dondurulur) |
+| `deney_a11*.py` | HyDE çıpası deneyi — kanıtı zayıf çıktı, `HYDE_CIPA=0.0` kaldı |
 
 **Modeller:** `intfloat/multilingual-e5-large` (bi-encoder), `BAAI/bge-reranker-v2-m3`
 (cross-encoder, varsayılan kapalı), Gemini flash-lite (HyDE sahte belgesi + gerekçe metni).
@@ -252,3 +293,19 @@ hepsi yanlış söyledi.
 - **Franchise grafı anime'ye özel.** Film ve kitapta seri farkındalığı yok; bir serinin 4.
   kitabı tek başına önerilebiliyor.
 - **Film/kitap profili yok.** Letterboxd/Goodreads export mevcut değil; mimari hazır.
+
+---
+
+## Nereden çıktı
+
+Bu proje bir öğrenme yol haritasının (Faz 4 — RAG) çıktısı olarak yazıldı ve
+[`yol-haritasi`](https://github.com/DenizSeno1/yol-haritasi) deposundan buraya taşındı;
+commit geçmişi korundu.
+
+Framework kullanılmamasının sebebi tercih değil **kural**: o yol haritasında bir katman,
+altındaki kavram elle yazılmadan kütüphaneye devredilmiyor. Embedding ve attention Faz 2'de
+elle yazıldığı için burada `sentence-transformers` kullanmak serbestti; retrieval hattı,
+profil çıkarımı, chunking denemeleri ve eval elle yazıldı.
+
+Yazılış sırası da bilinçli: **önce ölçü, sonra özellik.** Yukarıdaki tabloların çoğu bir
+özelliğin eklenme gerekçesi değil, eklenmeme gerekçesi.

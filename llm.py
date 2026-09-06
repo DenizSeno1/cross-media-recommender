@@ -19,7 +19,7 @@ import config
 
 logger = logging.getLogger(__name__)
 
-env_yolu = Path(__file__).resolve().parent.parent / ".env"
+env_yolu = config.KOK / ".env"
 load_dotenv(env_yolu)
 
 _KEY = os.environ.get("GEMINI_API_KEY")

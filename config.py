@@ -5,9 +5,9 @@ Flag'ler OLCULEREK karar verildi (Gun 10-11): degistirirken sebebini bil.
 
 from pathlib import Path
 
-KOK = Path(__file__).resolve().parents[2]          # yol_haritasi/
-VERI = KOK / "faz4" / "data"
-CACHE = Path(__file__).parent / "cache"
+KOK = Path(__file__).resolve().parent              # repo koku
+VERI = KOK / "data"                                # dondurulmus corpus (repoda yok, scripts/ ile cekilir)
+CACHE = KOK / "cache"
 HYDE_CACHE = CACHE / "hyde"                        # olcum modunda dondurulmus sahte belgeler
 
 # --- dondurulmus corpus dosyalari ---

@@ -14,10 +14,13 @@ AniList resmi GraphQL, anahtar gerekmiyor. Sayfa basina 50 kayit, ~98 istek.
 """
 
 import json
+import sys
 import time
+from pathlib import Path
 
 import requests
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/ -> repo koku
 import config
 
 CIKTI = config.VERI / "anime_relations.jsonl"

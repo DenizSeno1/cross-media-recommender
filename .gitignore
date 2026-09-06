@@ -1,0 +1,24 @@
+# Sirlar
+.env
+.env.*
+!.env.example
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Dondurulmus corpus — repoda tutulmuyor (13 MB, ucuncu taraf verisi).
+# scripts/ altindaki cekicilerle yeniden uretilir; README'ye bak.
+data/*
+!data/.gitkeep
+
+# Gomme cache'i — modelden yeniden uretilir, ~40 MB
+cache/*.npy
+
+# Kullanicinin kendi MAL verisinden turetilen profil dokumu (kisisel veri)
+profil.txt
+
+# NOT: cache/hyde/ BILEREK repoda.
+# Olcum dondurulur, urun rastgele kalir: eval.py'nin ayni sonucu vermesi
+# bu 47 dosyaya bagli. Silinirse eval yeniden uretir ama skorlar oynar.
