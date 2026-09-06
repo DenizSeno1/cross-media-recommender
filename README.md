@@ -11,6 +11,16 @@ hattı, chunking denemeleri, profil çıkarımı ve eval'in tamamı elle yazıld
 
 ## Ekran
 
+![Demo](demo.gif)
+
+*Tek sorgu, kesintisiz: "ölüm ve yas üzerine sakin fantastik yolculuk" → HyDE → retrieval →
+sonuç. İlk beşte **anime, film ve kitap bir arada**; altında getirilen metne dayalı gerekçe ve
+çağrı/token/maliyet sayacı. Bekleme süresi kırpılmadı, hızlandırılmadı — gerçek süre bu.
+Rerank kapalı (CPU'da 1.5-3 dk/sorgu; kazancı ve neden kapalı olduğu aşağıda).*
+
+<details>
+<summary>Duran kareler</summary>
+
 ![Profil yüklü + rerank açık](profil_rerank.png)
 
 *Tam hat: MAL listesi yüklü (10 zevk adası kuruldu, 617 kayıt elendi), rerank açık.
@@ -20,6 +30,8 @@ bir arada. Altta çağrı/token/maliyet sayacı.*
 ![Kişiselleştirme ve rerank kapalı](capraz_medya.png)
 
 *Aynı sorgu, çıplak hat: profil yok, rerank yok. Kişiselleştirmesiz herkes aynı sonucu alır.*
+
+</details>
 
 > İki kare aynı sorguda farklı listeler veriyor ve gözle bakınca ikincisi daha isabetli
 > duruyor. Bu bir kanıt değil: tek sorgu, tek koşu. `eval.py` 23 sorguda rerank'in
