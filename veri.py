@@ -82,4 +82,3 @@ if __name__ == "__main__":
     print("ornek belge:", belge(ornek)[:120])
     print("ornek baslik:", baslik(ornek))
     print("ornek link:", link(ornek))
-    print(f"BELGE: {link(corpus_yukle()[-504:-503][0])}")  # 501. anime, MAL synopsis var

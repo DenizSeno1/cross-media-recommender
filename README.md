@@ -9,6 +9,24 @@ hattı, chunking denemeleri, profil çıkarımı ve eval'in tamamı elle yazıld
 
 ---
 
+## Ekran
+
+![Profil yüklü + rerank açık](profil_rerank.png)
+
+*Tam hat: MAL listesi yüklü (10 zevk adası kuruldu, 617 kayıt elendi), rerank açık.
+Tek sorgu — "ölüm ve yas üzerine sakin fantastik yolculuk" — sonuçta anime, kitap ve film
+bir arada. Altta çağrı/token/maliyet sayacı.*
+
+![Kişiselleştirme ve rerank kapalı](capraz_medya.png)
+
+*Aynı sorgu, çıplak hat: profil yok, rerank yok. Kişiselleştirmesiz herkes aynı sonucu alır.*
+
+> İki kare aynı sorguda farklı listeler veriyor ve gözle bakınca ikincisi daha isabetli
+> duruyor. Bu bir kanıt değil: tek sorgu, tek koşu. `eval.py` 23 sorguda rerank'in
+> `recall@5`'e **+0.18** kattığını ölçüyor — ekran görüntüsü ölçüm değildir.
+
+---
+
 ## Çalıştırma
 
 ```bash
