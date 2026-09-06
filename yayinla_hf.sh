@@ -18,7 +18,6 @@ emoji: 🎬
 colorFrom: indigo
 colorTo: pink
 sdk: streamlit
-sdk_version: 1.63.0
 app_file: app.py
 pinned: false
 short_description: Anime, film ve kitabi tek vektor uzayinda arayan capraz-medya onerici
