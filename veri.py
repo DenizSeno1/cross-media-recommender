@@ -53,9 +53,10 @@ def belge(m: dict) -> str:
 
 def baslik(m: dict) -> str:
     """Gosterim basligi — medyadan bagimsiz tek arayuz."""
-    if m["media"] == "anime":
-        return m["title"].get("romaji") or m["title"].get("english") or "?"
-    return m["title"] or "?"
+    t = m["title"]
+    if isinstance(t, dict):                    # tam corpus: AniList ic ice title
+        return t.get("romaji") or t.get("english") or "?"
+    return t or "?"                            # demo paketi: duz string
 
 
 def link(m: dict) -> str:
@@ -65,7 +66,11 @@ def link(m: dict) -> str:
 
 
 def corpus_yukle() -> list[dict]:
-    """Uc corpus'u yukle, media etiketle, tek liste dondur (index sirasi = liste sirasi)."""
+    """Uc corpus'u yukle, media etiketle, tek liste dondur (index sirasi = liste sirasi).
+
+    Demo modunda tek bir slim dosya okunur (sinopsis YOK) — sira demo/V.npy ile ayni."""
+    if config.DEMO:
+        return _yukle(config.DEMO_DIZIN / "kayitlar.jsonl")
     anime = _yukle(config.ANIME_JSONL)
     for a in anime:
         a["media"] = "anime"                       # AniList kaydinda 'media' yok, ekle

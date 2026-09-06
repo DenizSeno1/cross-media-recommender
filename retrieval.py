@@ -51,9 +51,10 @@ def _hazirla():
             _model = _model.half()          # fp16: reranker ile birlikte 4GB'a sigsin
     if _corpus is None:
         _corpus = veri.corpus_yukle()
-        _belgeler = [veri.belge(m) for m in _corpus]
+        # Demo paketinde sinopsis yok -> belge() cagrilamaz; vektorler zaten hazir.
+        _belgeler = [] if config.DEMO else [veri.belge(m) for m in _corpus]
     if _V is None:
-        _V = _index(_belgeler, _model)
+        _V = _demo_index(len(_corpus)) if config.DEMO else _index(_belgeler, _model)
     return _model, _V, _corpus, _belgeler
 
 
@@ -109,6 +110,23 @@ def profil_kur(xml_kaynak=None):
     print(f"profil: {len(satirlar)} cekirdek, {config.K_ADA} zevk adasi, "
           f"{int(maske.sum())} kayit elendi (izlenen seriler)")
     return (adalar, maske)
+
+
+def _demo_index(n_kayit: int):
+    """Hazir vektorleri yukle (demo paketi). _index'in icerik-hash guard'i BYPASS EDILMIYOR:
+    demo modunda belge metni zaten yok, onun yerine demo/provenance.json vektorlerin hangi
+    modelden, hangi kaynaktan ve hangi belge hash'inden uretildigini ACIKCA kaydediyor.
+    Burada dogrulanan sey satir sayisi hizasi — corpus ile V ayni sirada olmak zorunda."""
+    import json
+    V = np.load(config.DEMO_DIZIN / "V.npy").astype(np.float32)
+    prov = json.loads((config.DEMO_DIZIN / "provenance.json").read_text(encoding="utf-8"))
+    if V.shape[0] != n_kayit:
+        raise RuntimeError(f"demo paketi bozuk: V {V.shape[0]} satir, corpus {n_kayit} kayit")
+    if prov["model"] != config.BI_MODEL:
+        raise RuntimeError(f"demo vektorleri {prov['model']} ile uretilmis, "
+                           f"config.BI_MODEL = {config.BI_MODEL}")
+    print(f"demo index: {V.shape} (uretim {prov['uretim']}, imza {prov['kaynak_belge_hash']})")
+    return V
 
 
 def _index(belgeler, model):

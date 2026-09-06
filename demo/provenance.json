@@ -1,0 +1,13 @@
+{
+  "model": "intfloat/multilingual-e5-large",
+  "anime_kaynak": "mal",
+  "kayit": 7807,
+  "boyut": [
+    7807,
+    1024
+  ],
+  "dtype_diskte": "float16",
+  "kaynak_belge_hash": "e5f0dd87fb",
+  "uretim": "2026-09-06",
+  "not": "Vektorler tam corpus'tan uretildi; bu pakette sinopsis METNI yok."
+}

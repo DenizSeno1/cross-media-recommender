@@ -67,6 +67,25 @@ sonraki açılışlar onu okur.
 > `cache/hyde/` **bilerek repoda**: 47 dondurulmuş sahte belge. `eval.py`'nin tekrarlanabilir
 > olması buna bağlı — ölçüm dondurulur, ürün rastgele kalır.
 
+### Demo modu — veri çekmeden çalıştırma
+
+`demo/` klasörü **önceden hesaplanmış vektörleri** (7807×1024, tam corpus'tan, float16) ve
+telifsiz meta bilgiyi (başlık, id, tür) taşıyor. **Sinopsis metni bu pakette yok** — üçüncü
+tarafa ait. Sonuçlar gerçek sistemle aynı, çünkü vektörler aynı.
+
+```bash
+DEMO_MODU=1 streamlit run app.py
+```
+
+`data/` boşsa demo modu **kendiliğinden** açılır. Paketi yeniden üretmek için (tam corpus
+gerekir): `python demo_hazirla.py`
+
+> **Provenance neden önemli:** `_index()` normalde cache dosya adına belgelerin içerik
+> hash'ini yazıyor — metin değişince eski vektörler sessizce okunamasın diye. Demo modunda
+> belge metni yok, dolayısıyla o guard uygulanamıyor; **bypass edilmedi, yerine
+> `demo/provenance.json` kondu** (model, kaynak belge hash'i, kayıt sayısı, üretim tarihi).
+> `_demo_index()` satır hizasını ve model adını yükleme anında doğruluyor.
+
 ## Çalıştırma
 
 ```bash

@@ -34,6 +34,15 @@ isit()
 st.title("🎬 Capraz-Medya Onerici")
 st.caption("Anime · film · kitap — icerik-tabanli HyDE retrieval. Gozlem arayuzu.")
 
+if config.DEMO:
+    st.info(
+        "**Demo modu.** Vektorler onceden hesaplanmis (7807 kayit, tam corpus'tan) ve "
+        "hazir yuklendi; sinopsis METNI bu pakette yok — ucuncu tarafa ait. Sonuclar "
+        "gercek sistemle ayni, cunku vektorler ayni. Rerank kapali (CPU'da dakikalar "
+        "suruyor), yani kalite olculen tavanin altinda. Kaynak ve olcumler README'de.",
+        icon="🧪",
+    )
+
 # --- profil: OTURUMA ait, surece degil (B1b, 2026-09-05) ---
 # Eskiden retrieval'da modul-duzeyi bir globaldi ve sabit bir XML yolundan okuyordu:
 # Streamlit tek surecte doner, o yuzden demoyu acan HERKES ayni (Deniz'in) zevkini

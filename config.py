@@ -3,6 +3,7 @@
 Flag'ler OLCULEREK karar verildi (Gun 10-11): degistirirken sebebini bil.
 """
 
+import os
 from pathlib import Path
 
 KOK = Path(__file__).resolve().parent              # repo koku
@@ -27,6 +28,14 @@ MAL_SYNOPSIS_JSONL = VERI / "mal_synopsis.jsonl"   # A7 deneyi: anime aciklamasi
 # Bedava degil: Steins;Gate 11->>50, Kobayashi 6->>50, Haikyuu 1->6 geriledi.
 # Kapsam: MAL synopsis 4835/4880 kayitta var; eksikte veri.belge() AniList'e duser.
 ANIME_KAYNAK = "mal"
+
+# --- demo modu ---
+# HF Spaces'te tam corpus YOK (sinopsis metni ucuncu tarafa ait) ve 2 vCPU'da 7807 dokumani
+# her acilista gommek dakikalar surer. Demo paketi hazir vektor + telifsiz meta tasiyor.
+# Elle acmak: DEMO_MODU=1. Otomatik: demo/ varsa ve tam corpus yoksa.
+DEMO_DIZIN = KOK / "demo"
+DEMO = (os.environ.get("DEMO_MODU", "").lower() in ("1", "true", "yes")
+        or ((DEMO_DIZIN / "V.npy").exists() and not (VERI / "anime_anilist.jsonl").exists()))
 
 # --- modeller ---
 BI_MODEL = "intfloat/multilingual-e5-large"        # bi-encoder retrieval
