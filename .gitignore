@@ -22,3 +22,6 @@ profil.txt
 # NOT: cache/hyde/ BILEREK repoda.
 # Olcum dondurulur, urun rastgele kalir: eval.py'nin ayni sonucu vermesi
 # bu 47 dosyaya bagli. Silinirse eval yeniden uretir ama skorlar oynar.
+
+# makineye ozel: venv yolu baska bilgisayarda tutmaz
+.vscode/

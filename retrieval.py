@@ -337,7 +337,10 @@ def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
             aday_idx, corpus, _seri_gruplari() if tekillestir else {}, k,
             profil.kota_olcekle(config.KOTA, k) if kotali else None)
 
-    return [dict(corpus[i], _skor=puan[i]) for i in aday_idx[:k]]
+    # _idx: kaydin corpus/V icindeki satir numarasi. Vektorune ulasmanin tek yolu bu
+    # (Faz 5: sinyaller.benzerlik V[_idx] okuyor). id->indeks haritasi kurmak yerine
+    # burada tasiniyor: ayni bilgiyi iki yerde tutmak sessizce desenkronize olur.
+    return [dict(corpus[i], _idx=i, _skor=puan[i]) for i in aday_idx[:k]]
 
 
 def getir_profilden(profil_paketi, k: int = config.TOP_K, medya: str | None = None,
@@ -411,7 +414,7 @@ def getir_profilden(profil_paketi, k: int = config.TOP_K, medya: str | None = No
         sayac[m["media"]] = sayac.get(m["media"], 0) + 1
         ada = (ada + 1) % len(adalar)
 
-    return [dict(corpus[r["_i"]], _skor=r["_skor"], _ada=r["_ada"]) for r in secilen]
+    return [dict(corpus[r["_i"]], _idx=r["_i"], _skor=r["_skor"], _ada=r["_ada"]) for r in secilen]
 
 
 if __name__ == "__main__":

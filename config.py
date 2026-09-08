@@ -112,3 +112,10 @@ LINK = {
     "film": "https://www.themoviedb.org/movie/{id}",
     "kitap": "https://books.google.com/books?id={id}",
 }
+
+# --- ajan (Faz 5) ---
+# Ajanin okudugu ozetin ust siniri. Arama TAM METIN uzerinde yapiliyor; bu kirpma
+# yalnizca LLM'in baglamina gireni etkiler, retrieval kalitesini DEGISTIRMEZ.
+# 512: corpus'un %47'si kirpilir, %53'u dokunulmadan gecer. 5 sonuc x 10 tur
+# ~ 6.4k token — rahat butce. Alaka karari icin sinopsisin ONCULU yeterli.
+AJAN_OZET_KRK = 512
