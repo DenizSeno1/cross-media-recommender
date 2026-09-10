@@ -47,6 +47,8 @@ def belge(m: dict) -> str:
     else:                                                   # film / kitap
         bas = m["title"] or ""
         ozet = m.get("overview") or ""
+    if not config.BELGE_TURLER:                  # A12 deneyi: tur alani cikarilmis varyant
+        return f"{bas}. {ozet}"
     turler = ", ".join(m.get("genres") or [])
     return f"{bas}. {turler}. {ozet}"
 

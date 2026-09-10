@@ -14,7 +14,10 @@ HYDE_CACHE = CACHE / "hyde"                        # olcum modunda dondurulmus s
 # --- dondurulmus corpus dosyalari ---
 ANIME_JSONL = VERI / "anime_anilist.jsonl"
 FILM_JSONL = VERI / "movies_tmdb.jsonl"
-KITAP_JSONL = VERI / "books_google.jsonl"
+KITAP_JSONL = VERI / "books_openlibrary.jsonl"   # 497 -> 4794 (2026-09-10)
+# Google Books BIRAKILDI: `subject:` sorgusu konu basina ~100 sonucta tukeniyor
+# (olculdu, startIndex 200 bos donuyor). 5000 icin ~180 konu gerekirdi.
+# Open Library ESER seviyesinde ve konu havuzlari 5-21k. Eski dosya duruyor.
 XML_LISTE = VERI / "animelist.xml"                 # kullanici MAL listesi (profil icin)
 MAL_SYNOPSIS_JSONL = VERI / "mal_synopsis.jsonl"   # A7 deneyi: anime aciklamasinin alternatif kaynagi
 
@@ -119,3 +122,9 @@ LINK = {
 # 512: corpus'un %47'si kirpilir, %53'u dokunulmadan gecer. 5 sonuc x 10 tur
 # ~ 6.4k token — rahat butce. Alaka karari icin sinopsisin ONCULU yeterli.
 AJAN_OZET_KRK = 512
+
+# --- deney (A12, 2026-09-10): tur alaninin agirligi ---
+# belge() metninin ~%5'i tur etiketi, %95'i sinopsis. Tur alanini nasil
+# dolduracagimizi tartisirken ETKISINI hic olcmemistik. Ortam degiskeniyle
+# kapatilabilir; index cache icerik hash'li oldugu icin iki varyant yan yana durur.
+BELGE_TURLER = os.environ.get("BELGE_TURLER", "1") == "1"

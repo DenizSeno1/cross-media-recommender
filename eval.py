@@ -152,6 +152,44 @@ def gold_dogrula(altin_set=ALTIN_SET):
     print(f"gold dogrulandi: {sum(len(b) for _, b in altin_set)} hedef, hepsi corpus'ta")
 
 
+def isabet_at_k(altin_set=ALTIN_SET, k_listesi=(5, 10), hyde_cache=True,
+                kota=True, tekillestir=True, franchise=True, **getir_ayar):
+    """URUN yolundan isabet: her k icin getir(k=k) CAGIRIR, gold o listede mi?
+
+    NEDEN AYRI BIR OLCU (A13, 2026-09-10 — Faz 4'un A1 dersinin kacan yarisi):
+        degerlendir() tek bir getir(k=50) cagirip o listenin ilk 5'ine bakiyor ve
+        buna "recall@5" diyor. Ama KOTA k ile OLCEKLENIYOR:
+            kota_olcekle(KOTA, k=5)  -> {anime:3,  film:1,  kitap:1}
+            kota_olcekle(KOTA, k=50) -> {anime:30, film:10, kitap:10}
+        Yani k=50 listesinin ilk 5'i 30/10/10 kotasi altinda seciliyor; besi de
+        kitap olabilir. Urun k=5'te 3/1/1'e ZORLUYOR. Olculen liste, urunun
+        dondurdugu liste DEGIL.
+
+        Olculdu (12104'luk corpus, 23 gold):
+            eval yolu ilk-5 bilesimi : 69 kitap · 38 anime ·  8 film
+            urun yolu k=5 bilesimi   : 69 anime · 23 film  · 23 kitap
+            eval "recall@5" 0.478  vs  URUN isabet@5 0.478 (eski corpus'ta 0.565 vs 0.478)
+
+        A1'de kota/tekillestirme bayraklarini urune esitlemistik ama `k`'nin kendisinin
+        bir kota parametresi oldugunu gormemistik. Ayni ders, kacan yarisi.
+
+    Isbolumu:  recall@50 = HAVUZ kalitesi (retrieval)   |   isabet@k = URUNUN verdigi
+    """
+    n = len(altin_set)
+    sonuclar = {}
+    for k in k_listesi:
+        isabet = 0
+        for sorgu, beklenen_ham in altin_set:
+            sonuc = retrieval.getir(sorgu, k=k, hyde_cache=hyde_cache, profil_paketi=None,
+                                    kota=kota, tekillestir=tekillestir, **getir_ayar)
+            gelen = [_kimlik(r, franchise) for r in sonuc]
+            hedef = {_kimlik(_gold_kayit(g), franchise) for g in beklenen_ham}
+            isabet += any(h in gelen for h in hedef)
+        sonuclar[f"isabet@{k}"] = isabet / n
+        print(f"  isabet@{k:<2} = {isabet / n:.3f}   ({isabet}/{n} sorgu, URUN yolu)")
+    return sonuclar
+
+
 def degerlendir(altin_set=ALTIN_SET, k_listesi=(5, 10, 50), hyde_cache=True,
                 kota=True, tekillestir=True, franchise=True, **getir_ayar):
     """altin_set uzerinde retrieval.getir()'i kos, recall@k + MRR bas.
@@ -189,10 +227,19 @@ def degerlendir(altin_set=ALTIN_SET, k_listesi=(5, 10, 50), hyde_cache=True,
 
     n = len(altin_set)
     print()
+    print("  [HAVUZ] k=%d listesinden — retrieval kalitesi, urunun listesi DEGIL" % en_buyuk)
     for k in k_listesi:
         print(f"  recall@{k:>2} = {toplam_recall[k] / n:.3f}")
     print(f"  MRR      = {toplam_mrr / n:.3f}")
-    return {**{f"recall@{k}": toplam_recall[k] / n for k in k_listesi}, "MRR": toplam_mrr / n}
+
+    print()
+    print("  [URUN] getir(k=k) cagrilarindan — kullanicinin gordugu liste")
+    urun = isabet_at_k(altin_set, k_listesi=tuple(k for k in k_listesi if k <= 10),
+                       hyde_cache=hyde_cache, kota=kota, tekillestir=tekillestir,
+                       franchise=franchise, **getir_ayar)
+
+    return {**{f"recall@{k}": toplam_recall[k] / n for k in k_listesi},
+            "MRR": toplam_mrr / n, **urun}
 
 
 # ---------------------------------------------------------------------------
