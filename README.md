@@ -372,3 +372,10 @@ profil çıkarımı, chunking denemeleri ve eval elle yazıldı.
 
 Yazılış sırası da bilinçli: **önce ölçü, sonra özellik.** Yukarıdaki tabloların çoğu bir
 özelliğin eklenme gerekçesi değil, eklenmeme gerekçesi.
+
+## Lisans
+
+[MIT](LICENSE) — Copyright (c) 2026 Deniz Şenol.
+
+Corpus dosyaları kapsam dışı: sinopsis metinleri AniList/MyAnimeList, TMDB ve Open Library
+kaynaklıdır, kendi koşullarına tabidir ve `data/` repoda tutulmaz (`scripts/` ile çekilir).
