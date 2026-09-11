@@ -39,42 +39,71 @@ import veri
 # anahtari ("OL262454W"; kaynak 2026-09-10'da Google Books'tan tasindi).
 # Her gold serinin KANONIK BAZ girdisi (Haikyuu 1. sezon, Rocky 1976, Godfather 1972).
 ALTIN_SET = [
-    # --- anime (Gun 3-4'ten, degistirilmedi: eski sayilar yeniden uretilebilsin) ---
-    ("ölüm ve yas üzerine sakin fantastik yolculuk", [("anime", 52991)]),                       # Frieren
-    ("büyülü kızların savaştığı karanlık psikolojik hikaye", [("anime", 9756)]),                # Madoka
-    ("gizemli bir şekilde kaybolan kızın ardındaki sırları araştıran bir grup arkadaş", [("anime", 934)]),   # Higurashi
-    ("aniden başka bir dünyaya ışınlanan ergenin, yeni dünyada hayatta kalmak için verdiği mücadele", [("anime", 31240)]),  # Re:Zero
-    ("zaman yolculuğu ve paralel evrenler arasında geçen, karmaşık ilişkiler ve duygusal bağları konu alan bir anime", [("anime", 9253)]),  # Steins;Gate
-    ("gizemli bir ışın tarafından tüm dünyadaki insanların taşlaştığı bir felaket sonrasında zeki ana karakterin uygarlığı yeniden inşa etme çabalarını konu alan bir anime", [("anime", 38691)]),  # Dr. STONE
-    ("çin sarayında geçen, anakarakterin zehirlere ilgi duyduğu ve saraydaki gizemleri çözemeye çalıştığı bir anime", [("anime", 54492)]),  # Kusuriya
-    ("bir grup arkadaşın, kulüp odasında kek yapıp çay içtiği bazen de müzik yaptıkları, sakin ve huzurlu Kyoto yapımı bir anime", [("anime", 5680)]),  # K-ON!
-    ("tatlı ejderhaların bulunduğu slice of life tarzı bir anime", [("anime", 33206)]),         # Kobayashi
-    ("simya ve felsefe temalarını işleyen, iki kardeşin simya yolculuğunu konu alan bir anime", [("anime", 5114)]),  # FMA:B
-    ("yüzyıllar boyu üzerlerinde bulunan lanetler ile savaşan bir soyun başından geçen garip maceraları konu alan köklü bir serinin anime uyarlaması", [("anime", 14719)]),  # JoJo
+    #  ANİME 20 ADET
+    ("ölüm ve yas üzerine sakin fantastik yolculuk", [("anime", 52991)]),                                                                                                                                               # 1) Frieren
+    ("büyülü kızların savaştığı karanlık psikolojik hikaye", [("anime", 9756)]),                                                                                                                                        # 2) Madoka
+    ("gizemli bir şekilde kaybolan kızın ardındaki sırları araştıran bir grup arkadaş", [("anime", 934)]),                                                                                                              # 3) Higurashi
+    ("aniden başka bir dünyaya ışınlanan ergenin, yeni dünyada hayatta kalmak için verdiği mücadele", [("anime", 31240)]),                                                                                              # 4) Re:Zero
+    ("zaman yolculuğu ve paralel evrenler arasında geçen, karmaşık ilişkiler ve duygusal bağları konu alan bir anime", [("anime", 9253)]),                                                                              # 5) Steins;Gate
+    ("gizemli bir ışın tarafından tüm dünyadaki insanların taşlaştığı bir felaket sonrasında zeki ana karakterin uygarlığı yeniden inşa etme çabalarını konu alan bir anime", [("anime", 38691)]),                      # 6) Dr. STONE
+    ("çin sarayında geçen, anakarakterin zehirlere ilgi duyduğu ve saraydaki gizemleri çözemeye çalıştığı bir anime", [("anime", 54492)]),                                                                              # 7) Kusuriya
+    ("bir grup arkadaşın, kulüp odasında kek yapıp çay içtiği bazen de müzik yaptıkları, sakin ve huzurlu Kyoto yapımı bir anime", [("anime", 5680)]),                                                                  # 8) K-ON!
+    ("tatlı ejderhaların bulunduğu slice of life tarzı bir anime", [("anime", 33206)]),                                                                                                                                 # 9) Kobayashi
+    ("simya ve felsefe temalarını işleyen, iki kardeşin simya yolculuğunu konu alan bir anime", [("anime", 5114)]),                                                                                                     # 10) FMA:B
+    ("yüzyıllar boyu üzerlerinde bulunan lanetler ile savaşan bir soyun başından geçen garip maceraları konu alan köklü bir serinin anime uyarlaması", [("anime", 14719)]),                                             # 11) JoJo
+    ("spora ilgi duyan ama spordan anlamayan bir gencin lisede voleybol takımına katılmasını ve takım arkadaşlarıyla yaşadığı dostluğu konu alan bir anime", [("anime", 20583)]),                                       # 12) Haikyuu!! (1. sezon)
+    ("lisedeki bir ders yüzünden zorla evlendirilen bir çiftin zamanla birbirlerine aşık olmasını konu alan romantik bir anime", [("anime", 50425)]),                                                                   # 13) Fuufu Ijou, Koibito Miman.
+    ("iki düşman lisenin liderlerinin birbirlerine aşık olmasını ve kimseye fark ettirmeden ilişkilerini sürdürmeye çalışmalarını konu alan bir romantik komedi anime", [("anime", 37475)]),                            # 14) Kishuku Gakkou no Juliet
+    ("hayatı çok kötü giden bir adamın tanımadığı bir şirket tarafından denek olarak kullanılması ve bu süreçte hayata yeniden bağlanmasını konu alan bir anime", [("anime", 30015)]),                                  # 15) ReLIFE
+    ("iki farklı samuray ve bir kızın yollarının kesişmesinin ardından yaşadıkları maceraları ve gelişen arkadaşlıklarını konu alan bir anime", [("anime", 205)]),                                                      # 16) Samurai Champloo
+    ("engelli bir kızın bir adama aşık olmasını ve ilişkilerini konu alan bir romantik anime", [("anime", 55866)]),                                                                                                     # 17) Yubisaki to Renren
+    ("tanrıya inanmayan bir adamın öldükten sonra tatlı bir kız olarak yeniden doğmasını ve tanrıya savaş açmasını konu alan bir anime", [("anime", 32615)]),                                                           # 18) Youjo Senki
+    ("insanları kişiliklerine ve suç işleme potansiyeline göre bir sistemde sınıflandıran bir dünyada geçen, ana karakterin bu sistemle mücadelesini konu alan bir anime", [("anime", 13601)]),                         # 19) Psycho-Pass
+    ("galaksiler arasında iki farklı gücün savaşını ve iki taraftaki dahilerin akıl oyunlarını konu alan bir anime", [("anime", 820)]),                                                                                 # 20) Ginga Eiyuu Densetsu
 
-    # --- anime, 2026-09-03 eki (Deniz yazdi; nis + tur cesitliligi icin) ---
-    ("spora ilgi duyan ama spordan anlamayan bir gencin lisede voleybol takımına katılmasını ve takım arkadaşlarıyla yaşadığı dostluğu konu alan bir anime", [("anime", 20583)]),  # Haikyuu!! (1. sezon)
-    ("lisedeki bir ders yüzünden zorla evlendirilen bir çiftin zamanla birbirlerine aşık olmasını konu alan romantik bir anime", [("anime", 50425)]),  # Fuufu Ijou, Koibito Miman.
-    ("iki düşman lisenin liderlerinin birbirlerine aşık olmasını ve kimseye fark ettirmeden ilişkilerini sürdürmeye çalışmalarını konu alan bir romantik komedi anime", [("anime", 37475)]),  # Kishuku Gakkou no Juliet
-    ("hayatı çok kötü giden bir adamın tanımadığı bir şirket tarafından denek olarak kullanılması ve bu süreçte hayata yeniden bağlanmasını konu alan bir anime", [("anime", 30015)]),  # ReLIFE
-    ("iki farklı samuray ve bir kızın yollarının kesişmesinin ardından yaşadıkları maceraları ve gelişen arkadaşlıklarını konu alan bir anime", [("anime", 205)]),  # Samurai Champloo
-    ("engelli bir kızın bir adama aşık olmasını ve ilişkilerini konu alan bir romantik anime", [("anime", 55866)]),  # Yubisaki to Renren
-    ("tanrıya inanmayan bir adamın öldükten sonra tatlı bir kız olarak yeniden doğmasını ve tanrıya savaş açmasını konu alan bir anime", [("anime", 32615)]),  # Youjo Senki
-
-    # --- film, 2026-09-03 eki. DIKKAT: bunlar film->film, CAPRAZ MEDYA DEGIL.
-    #     Film corpus'u (2430) daha once hic olculmemisti, o bosluğu kapatiyor. A6 ayri duruyor.
-    ("italyan mafyasını konu alan, intikam ve suç temalarını işleyen bir yapım", [("film", 238)]),        # The Godfather (1972)
-    ("spagetti western tarzında, zengin olmayı amaçlayan üç farklı adamın birbirleri arkasından iş çevirmelerini konu alan bir film", [("film", 429)]),  # The Good, the Bad and the Ugly
-    # ⚠️ ZAYIF GOLD (mentor notu): bu tarif Solaris / Moon / Sunshine'a Interstellar'dan daha
-    #    cok uyuyor. Sistem onlari getirirse HAKLI olur ama eval yanlis sayar. Sorgu yeniden
-    #    yazilmali (zaman genlesmesi + baba-kiz cekirdegi) ya da hedef degismeli. Deniz karar verecek.
-    ("uzayda geçen, yalnızlık ve psikolojik gerilim barındıran bilimkurgu", [("film", 157336)]),          # Interstellar
-    ("insanların rüyalarına girip fikir çalmayı konu alan soygun ve aksiyon filmi", [("film", 27205)]),   # Inception
-    ("bir boksörün dipten zirveye yükselişini anlatan kült spor draması", [("film", 1366)]),              # Rocky (1976)
-
-    # --- kitap: HENUZ YOK. Eski Google Books corpus'u (497) fantastik/cocuk klasikleri
-    #     dilimine sikismisti; Open Library'ye gecisle 4794 esere cikti (15 konu havuzu),
-    #     yani gold yazmanin onundeki VERI engeli kalkti. Karar bekliyor.
+    #  FILM 20 ADET
+    ("italyan mafyasını konu alan, intikam ve suç temalarını işleyen bir yapım", [("film", 238)]),                                                                                                                      # 21) The Godfather (1972)
+    ("spagetti western tarzında, zengin olmayı amaçlayan üç farklı adamın birbirleri arkasından iş çevirmelerini konu alan bir film", [("film", 429)]),                                                                 # 22) The Good, the Bad and the Ugly
+    ("uzayda geçen, yalnızlık ve psikolojik gerilim barındıran bilimkurgu", [("film", 157336)]),                                                                                                                        # 23) Interstellar
+    ("insanların rüyalarına girip fikir çalmayı konu alan soygun ve aksiyon filmi", [("film", 27205)]),                                                                                                                 # 24) Inception
+    ("bir boksörün dipten zirveye yükselişini anlatan kült spor draması", [("film", 1366)]),                                                                                                                            # 25) Rocky (1976)
+    ("haksız yere hapse atılan bir bankacının umut, dostluk ve sabırla örülü uzun yıllara yayılan kaçış hikayesi", [("film", 278)]),                                                                                    # 26) The Shawshank Redemption (1994)
+    ("tek bir odada geçen, bir cinayet davasında sanığın suçluluğunu tartışan 12 jüri üyesinin psikolojik ve hukuki çatışması", [("film", 389)]),                                                                       # 27) 12 Angry Men (1957)
+    ("modern tüketim kültürünü eleştiren, şizofrenik bir alt kültür ve yeraltı dövüş organizasyonu etrafında dönen psikolojik gerilim", [("film", 550)]),                                                               # 28) Fight Club (1999)
+    ("bir televizyon programında doğup büyüyen ve tüm hayatının gizli kameralarla dünyaya naklen yayınlandığını fark eden bir adamın trajikomik varoluş mücadelesi", [("film", 37165)]),                                # 29) The Truman Show (1998)
+    ("ikinci dünya savaşı sırasında yahudileri fabrikasında çalıştırarak soykırımdan kurtarmaya çalışan bir iş insanının gerçek hikayesi", [("film", 424)]),                                                            # 30) Schindler's List (1993)
+    ("insanlığın ve evrenin kökenini araştırmak için gizemli bir siyah taşın izini süren bir uzay gemisi mürettebatının, yapay zekanın isyanıyla karşılaşmasını konu alan bir film", [("film", 62)]),                   # 31) 2001: A Space Odyssey (1968)
+    ("bir dedektifin ve ortağının, yedi ölümcül günahı temel alarak cinayetler işleyen gizemli bir seri katilin peşine düşmesini konu alan polisiye", [("film", 807)]),                                                 # 32) Se7en (1995)
+    ("akıl hastanesine yatırılan özgür ruhlu bir adamın, otoriter sisteme ve baskıcı hemşireye karşı başlattığı kurumsal isyan", [("film", 510)]),                                                                      # 33) One Flew Over the Cuckoo's Nest (1975)
+    ("hafızasından eski sevgilisini sildirmeye çalışan bir adamın, zihninin derinliklerindeki anıları ve pişmanlıkları arasında geçen gerçeküstü drama", [("film", 38)]),                                               # 34) Eternal Sunshine of the Spotless Mind (2004)
+    ("farklı hikaye çizgilerinin, absürt diyalogların ve suç dünyasındaki gangsterlerin yollarının kesiştiği doğrusal olmayan kült yapım", [("film", 680)]),                                                            # 35) Pulp Fiction (1994)
+    ("japon feodal döneminde yağmacılara karşı köylerini korumak için yedi samurayı kiralayan köylülerin epik ve felsefi mücadelesi", [("film", 346)]),                                                                 # 36) Seven Samurai (1954)
+    ("gizemli bir cinayeti çözmek için yerel polislerin ve bir dedektifin kırsal bir bölgede hafıza tazeleyerek katilin peşine düşmesini işleyen güney kore yapımı gerilim", [("film", 11423)]),                        # 37) Memories of Murder (2003)
+    ("bir illüzyonistin, rakibiyle girdiği amansız rekabeti, takıntıyı ve fedakarlığı konu alan sihirbazlık temalı gizem filmi", [("film", 1124)]),                                                                     # 38) The Prestige (2006)
+    ("insanlığın çocuk sahibi olma yetisini kaybettiği distopik bir gelecekte, mucizevi bir şekilde hamile kalan son kadını koruma mücadelesi", [("film", 9693)]),                                                      # 39) Children of Men (2006)
+    ("vietnam savaşı'nın karanlığını, askerlerin deliliğe sürüklenişini ve insan doğasının vahşetini nehir boyunca yapılan bir yolculukla anlatan askeri drama", [("film", 28)]),                                       # 40) Apocalypse Now (1979)
+    
+    # KITAP 20 ADET
+    ("yapay uzuvlar ve simya kullanarak ölümsüz bir varlık yaratmaya çalışan bir bilim insanının felsefi ve gotik hikayesi", [("kitap", "OL450063W")]),                                                                 # 41) Frankenstein — Mary Shelley
+    ("transilvanya'dan ingiltere'ye uzanan, mektup ve günlük formunda yazılmış tekinsiz bir gotik korku ve vampir klasiği", [("kitap", "OL85892W")]),                                                                   # 42) Dracula — Bram Stoker
+    ("rüzgarlı ingiliz kırlarında geçen, nesiller boyu süren saplantılı bir aşkı, nefreti ve intikamı konu alan dramatik roman", [("kitap", "OL21177W")]),                                                              # 43) Wuthering Heights — E. Brontë
+    ("bir kaptanın okyanusun ortasında devasa bir beyaz balinayı takıntılı bir şekilde avlama mücadelesini anlatan felsefi epik", [("kitap", "OL102749W")]),                                                            # 44) Moby Dick — Melville
+    ("1920'lerin Amerika'sında zenginlik, lüks ve gösterişin arkasındaki boşluğu ve imkansız bir aşkın trajedisini işleyen kült yapıt", [("kitap", "OL468431W")]),                                                      # 45) The Great Gatsby — Fitzgerald
+    ("bir bilim insanının geleceğe giderek insanlığın evrimleştiği iki farklı sınıfın karanlık ilişkisini keşfetmesini anlatan bilimkurgu", [("kitap", "OL52267W")]),                                                   # 46) The Time Machine — H.G. Wells
+    ("yoksul bir öğrencinin işlediği cinayetin ardından yaşadığı yoğun vicdan azabını ve ahlaki çöküşü ele alan psikolojik gerilim", [("kitap", "OL166894W")]),                                                         # 47) Crime and Punishment — Fyodor Dostoevsky
+    ("üst sınıf rus toplumunda yaşanan yasak bir aşkı, evlilik normlarını ve bireysel trajedileri konu alan devasa gerçekçi drama", [("kitap", "OL267096W")]),                                                          # 48) Anna Karenina — Leo Tolstoy
+    ("gizemli bir sisli arazide geçen, lanetli bir köpek efsanesini ve zekice işlenmiş bir cinayeti çözen dedektiflik hikayesi", [("kitap", "OL262454W")]),                                                             # 49) The Hound of the Baskervilles — Arthur Conan Doyle
+    ("genç bir kızın bir tavşan deliğinden düşerek mantığın sınırlarını zorlayan gerçeküstü ve büyülü bir dünyaya adım atmasını anlatan klasik", [("kitap", "OL138052W")]),                                             # 50) Alice's Adventures in Wonderland — Lewis Carroll
+    ("yetimhanede büyüyen bir çocuğun londra'nın yeraltı suç dünyasına çekilmesini ve hayatta kalma mücadelesini anlatan toplumsal eleştiri", [("kitap", "OL8193478W")]),                                               # 51) Oliver Twist — Charles Dickens
+    ("ıssız bir adaya düşen bir denizcinin, doğaya karşı verdiği amansız hayatta kalma ve kendi uygarlığını inşa etme mücadelesi", [("kitap", "OL45089W")]),                                                            # 52) Robinson Crusoe — Daniel Defoe
+    ("püriten bir toplumda zina ile suçlanan bir kadının, göğsünde taşımaya mahkum edildiği simge üzerinden ilerleyen toplumsal drama", [("kitap", "OL455305W")]),                                                      # 53) The Scarlet Letter — Nathaniel Hawthorne
+    ("iktidarı elde etme, koruma ve devlet yönetimi üzerine acımasız ve rasyonalist stratejiler barındıran felsefi el kitabı", [("kitap", "OL1089297W")]),                                                              # 54) The Prince — Niccolò Machiavelli
+    ("bir taşra kasabasında büyüyen bir yetimin, gizemli bir hayırsever sayesinde sınıf atlama ve aşkı bulma yolculuğunu anlatan roman", [("kitap", "OL8721462W")]),                                                    # 55) Great Expectations — Charles Dickens
+    ("amerikan iç savaşı döneminde büyüyen dört kız kardeşin hayata tutunma, büyüme ve bireysellik mücadelesini işleyen sıcak drama", [("kitap", "OL29983W")]),                                                         # 56) Little Women — Louisa May Alcott
+    ("iki gencin doğanın kalbindeki vahşi yaşamda yollarının kesişmesini, hayatta kalma mücadelelerini ve arka plandaki karmaşık aile dramalarını konu alan bir kitap", [("kitap", "OL17874351W")]),                    # 57) Wildlife — Fiona Wood
+    ("küçük bir adanın izole atmosferinde geçen, yerel efsaneler, monarşik yapılar ve sırlarla örülü tarihi bir gizem romanı", [("kitap", "OL17871733W")]),                                                             # 58) The Last Kings of Sark — Ben Le Touzel Faccini
+    ("yatılı bir lisedeki gençlerin güç mücadelelerini, gençlik travmalarını ve yozlaşmış bir eğitim sistemine karşı isyanlarını anlatan sert bir drama", [("kitap", "OL19986116W")]),                                  # 59) Brutal Youth — Anthony Breznican
+    ("bir evin tavan arasında saklanan gizemleri, geçmişten gelen aile sırlarını ve klostrofobik bir atmosferde gelişen gerilim dolu bir hikayeyi işleyen roman", [("kitap", "OL4286638W")])                            # 60) Attic — Katherine S. Applegate
 ]
 
 
