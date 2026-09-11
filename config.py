@@ -113,7 +113,10 @@ FIYAT_CIKTI_1M = 0.40
 LINK = {
     "anime": "https://myanimelist.net/anime/{id}",
     "film": "https://www.themoviedb.org/movie/{id}",
-    "kitap": "https://books.google.com/books?id={id}",
+    # Kitap kaynagi Open Library oldu (2026-09-10); id artik OL...W bicimli bir
+    # ESER anahtari. Google Books sablonu sozdizimsel olarak calisiyordu ama
+    # hicbir yere gitmiyordu — sessiz hata, ajan ciktisinda yakalandi (09-11).
+    "kitap": "https://openlibrary.org/works/{id}",
 }
 
 # --- ajan (Faz 5) ---
