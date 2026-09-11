@@ -175,14 +175,39 @@ bunun altındaki hiçbir fark okunmaz.
 | HyDE (AniList sinopsisi) | 0.261 | sistem |
 | HyDE (MAL sinopsisi) | 0.435 | sistem — **gerçek kazanç** |
 | + medya kotası + seri tekilleştirme | 0.435 | ürün değişti, metrik sabit |
-| franchise düzeyinde eşleşme | **0.565** | ⚠️ **ölçü düzeldi — KAZANÇ DEĞİL** |
+| franchise düzeyinde eşleşme | 0.565 | ⚠️ **ölçü düzeldi — KAZANÇ DEĞİL** |
+| kitap corpus'u 497 → 4794 (Open Library) | **0.478** | corpus büyüdü — **REGRESYON DEĞİL** |
 
-Son satır bilerek işaretli. Ürün franchise başına tek temsilci döndürüyor ve hangisinin
-hayatta kalacağına 0.001'lik skor farkı karar veriyor; katı eşleştirici bunu sistematik
+Son iki satır bilerek işaretli, ikisi de aynı sebepten: **sayı oynadı ama sistem
+değişmedi.**
+
+Franchise satırı: ürün franchise başına tek temsilci döndürüyor ve hangisinin hayatta
+kalacağına 0.001'lik skor farkı karar veriyor; katı eşleştirici bunu sistematik
 yanlış-negatif sayıyordu. Sayının büyümesi sistemin iyileşmesi değil, ölçünün dürüstleşmesi.
-İkisini aynı sütunda göstermek raporu yalan yapardı.
 
-**Ürün konfigü:** `recall@5` **0.565** · `recall@50` **0.739** · `MRR` **0.444**
+Corpus satırı: aynı 23 altın hedef artık 7224 fazla belgeyle yarışıyor (7807 → 12104).
+Havuz zorlaştı, retrieval aynı kaldı. Bu yüzden `recall@50` **hiç oynamadı** (0.739) —
+tavan corpus'un büyümesinden etkilenmiyor, ilk-5 yarışı etkileniyor.
+
+**Ürün konfigü** (12104 kayıt, 2026-09-11, donmuş HyDE, rerank kapalı):
+
+| ölçü | değer | ne söylüyor |
+|---|---|---|
+| `recall@50` | **0.739** | HAVUZ kalitesi — kaba süzgeç gold'u bulabiliyor mu |
+| `recall@5` | **0.478** | k=50 listesinin ilk 5'i |
+| `MRR` | **0.326** | gold'un ortalama sıra tersi |
+| `isabet@5` | **0.478** | **ÜRÜNÜN verdiği liste** — `getir(k=5)` çağrısından, 11/23 sorgu |
+| `isabet@10` | **0.522** | aynı, `getir(k=10)` — 12/23 sorgu |
+
+Son iki satır neden ayrı: kota `k` ile ölçekleniyor (`k=50` → 30/10/10, `k=5` → 3/1/1),
+yani k=50 listesinin ilk 5'i ürünün döndürdüğü liste **değil**. `recall@k` havuzu ölçer,
+`isabet@k` kullanıcının gördüğünü. Ayrımı ölçü aracına eklemek bir gün sürdü; o güne kadar
+eval kendi ürününü ölçtüğünü sanıyordu.
+
+> ⚠️ **Bu belgedeki diğer sayılar 7807 kayıtlık corpus'ta ölçüldü** (rerank +0.18, çıpa
+> 0.652, tablodaki ara aşamalar). A/B *farkları* geçerli — hepsi tek değişkenle, donmuş
+> HyDE ile koşuldu — ama mutlak değerler yukarıdaki tabanla kıyaslanamaz. Eski corpus'ta
+> `recall@5` tabanı 0.565'ti.
 
 ### Öneri kalitesi (tut-bırak)
 
@@ -191,7 +216,12 @@ setin hedefinden uzaklaştırır, dolayısıyla `recall@k` ile ayarlanamaz. Ayr�
 **10 verdiğim franchise'lardan 8'ini profilden gizle, sistem geri buluyor mu?** (5 tekrar, farklı
 gizlenen kümeleriyle, tohum sabit.)
 
-| k | isabet@k | rastgele | kat |
+> **Ad çakışması, dikkat:** aşağıdaki `isabet@k` yukarıdakiyle **aynı şey değil.**
+> Yukarıdaki (`eval.py`) "gold ürünün k'lık listesinde mi" diye soruyor; aşağıdaki
+> (`holdout.py`) "profilden gizlediğim franchise'ı sistem geri buluyor mu" diye soruyor.
+> Farklı ölçü, farklı taban, farklı soru.
+
+| k | isabet@k (tut-bırak) | rastgele | kat |
 |---|---|---|---|
 | 5 | 0.000 | 0.0023 | 0x |
 | 10 | 0.000 | 0.0046 | 0x |
