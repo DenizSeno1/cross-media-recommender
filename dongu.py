@@ -28,6 +28,7 @@ import time
 from pydantic import BaseModel
 
 import araclar
+import durum
 import llm
 
 log = logging.getLogger("dongu")
@@ -94,19 +95,27 @@ def _llm_turu(gecmis: list[dict]) -> "Tur":
     raise ValueError(f"{MAX_ONARIM} denemede gecerli tur alinamadi")
 
 
-def _arac_calistir(ad: str, args: dict) -> str:
-    """Dispatcher: adi verilen araci cagirir, ciktisini metin olarak doner.
+def _arac_calistir(ad: str, args: dict) -> tuple[str, list[dict] | None]:
+    """Dispatcher: adi verilen araci cagirir.
+
+    donus : (gozlem_metni, yapisal_kayitlar)
+        gozlem_metni     -> modelin baglamina giren sey
+        yapisal_kayitlar -> durum.iz()'in okudugu kayitlar; HATA YOLUNDA None
+
+    None'in anlami "sonuc bos" degil, "bu tur normal bir arama degildi". Ayrim
+    onemli: bos sonuc budanir (iz'e iner), hata mesaji BUDANMAZ — zaten bir iki
+    satir ve ajanin kendini duzeltmesi ona bagli.
 
     Bilinmeyen arac adi ya da bozuk argumanlar HATA MESAJI olarak doner, exception
     firlatmaz — ajan bunu gozlem olarak okuyup kendini duzeltebilsin diye.
     """
     kayit = araclar.ARACLAR.get(ad)
     if kayit is None:
-        return f"HATA: '{ad}' diye bir arac yok. Mevcut: {list(araclar.ARACLAR)}"
+        return f"HATA: '{ad}' diye bir arac yok. Mevcut: {list(araclar.ARACLAR)}", None
     try:
         return kayit["fonksiyon"](**args)
     except TypeError as h:
-        return f"HATA: '{ad}' argumanlari uymadi: {h}"
+        return f"HATA: '{ad}' argumanlari uymadi: {h}", None
     except Exception as h:
         # TypeError YETMIYOR. Model semadaki sozlugun DISINA cikan bir deger
         # uretebiliyor ("Anime", "books", "kitaplar") ve o deger araci degil
@@ -119,7 +128,7 @@ def _arac_calistir(ad: str, args: dict) -> str:
         log.warning("arac '%s' hata verdi: %s: %s", ad, type(h).__name__, h)
         return (f"HATA: '{ad}' calistirilamadi ({type(h).__name__}: {h}). "
                 f"Argumanlari semaya gore duzelt; 'medya' yalnizca "
-                f"anime/film/kitap/hepsi olabilir.")
+                f"anime/film/kitap/hepsi olabilir."), None
 
 
 # ---------------------------------------------------------------------------
@@ -160,7 +169,7 @@ def _olcum_yaz(kayit: dict, basla: float, sayac0: tuple) -> None:
     kayit["cikti_tok"] = llm.sayac.cikti - sayac0[2]
 
 
-def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
+def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) -> dict:
     """Ajani calistirir: model karar verir, arac cagrilir, sonuc geri beslenir.
 
     girdi : sorgu (str) — kullanicinin dogal dildeki istegi
@@ -187,20 +196,18 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
         3) arac cagir          -> _arac_calistir(tur.arac, tur.args)
         4) gozlemi gecmise ek  -> bir sonraki tur bunu gorsun
 
-    Baslangic gecmisi:
-        [{"role": "user", "parts": [{"text": SISTEM_PROMPT.format(
-            semalar=json.dumps([a["sema"] for a in araclar.ARACLAR.values()],
-                               ensure_ascii=False, indent=2),
-            sorgu=sorgu)}]}]
+    Gecmis artik elle tutulan bir liste DEGIL, durum.Durum nesnesi (Gun 3-4).
+    Fark: kayitlar hep TAM tutuluyor, modele GONDERILEN gecmis her turda sifirdan
+    derleniyor ve `pencere` disinda kalan turlarin gozlemi tek satirlik IZ'e iniyor.
 
-    Gozlemi gecmise eklerken dikkat: model kendi cikti bicimini gormeli
-    ("role": "model") ve aracin sonucu ayri bir mesaj olmali ("role": "user").
-    Aksi halde model gecmisteki kendi JSON'unu kullanicinin yazdigi sanir.
+    pencere : kac turun gozlemi TAM gonderilecek
+        1                     -> varsayilan, budamali
+        hard_cap (ya da ustu) -> hicbir sey budanmaz; budamasiz taban olcum bu
     """
-    gecmis = [{"role": "user", "parts": [{"text": SISTEM_PROMPT.format(
+    d = durum.Durum(SISTEM_PROMPT.format(
         semalar=json.dumps([a["sema"] for a in araclar.ARACLAR.values()],
                            ensure_ascii=False, indent=2),
-        sorgu=sorgu)}]}]
+        sorgu=sorgu))
     turlar = []
     gorulen_cagri = set()          # (arac, args) — ayni hamle ikinci kez CALISTIRILMAZ
     for tur_no in range(1, hard_cap + 1):
@@ -208,12 +215,19 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
         # onarim denemeleri) turun hem gecikmesinin hem faturasinin buyuk kismi.
         basla = time.perf_counter()
         sayac0 = (llm.sayac.cagri, llm.sayac.girdi, llm.sayac.cikti)
-        tur = _llm_turu(gecmis)
+        # Gecmis HER TURDA SIFIRDAN kuruluyor (durum.Durum'un docstring'i):
+        # budama yerinde yapilmadigi icin "hangi mesaji silmistim" takibi yok.
+        # _llm_turu bu listeye onarim mesajlari ekleyebilir; o eklemeler TUR ICI
+        # kalir, bir sonraki turda kaybolur — dogru olan da bu, bozuk JSON'un
+        # duzeltmesi kalici gecmise girmemeli.
+        tur = _llm_turu(d.gecmis(pencere))
         # Kayit ONCE olusturulup listeye konuyor, olcum alanlari asagida doldurulacak.
         # Boylece cevapla biten turda da kayit var.
         kayit = {"no": tur_no, "dusunce": tur.dusunce, "arac": tur.arac,
                  "args": tur.args, "gozlem_krk": 0, "sure_sn": 0.0,
-                 "llm_cagri": 0, "girdi_tok": 0, "cikti_tok": 0}
+                 "llm_cagri": 0, "girdi_tok": 0, "cikti_tok": 0,
+                 "gonderilen_tok": d.token_tahmini(pencere),
+                 "budamasiz_tok": d.token_tahmini(hard_cap)}
         turlar.append(kayit)
         if tur.cevap:
             _olcum_yaz(kayit, basla, sayac0)
@@ -229,15 +243,21 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
                      "sonucu yukarida. Olculdu: ayni sorguyla tekrar aramak sonucu "
                      "degistirmiyor. Sorguyu DEGISTIR (baska kelimeler, baska tema "
                      "vurgusu, medya kisitini gevset) ya da elindekiyle cevap ver.")
+            yapisal = None
         else:
             gorulen_cagri.add(imza)
-            sonuc = _arac_calistir(tur.arac, tur.args)
+            sonuc, yapisal = _arac_calistir(tur.arac, tur.args)
         kayit["gozlem_krk"] = len(sonuc)        # gozlemin baglama getirdigi yuk
+
+        # IZ: normal aramada durum.iz() kurar (tepe skor + basliklar oradan gelir).
+        # Hata/tekrar yolunda yapisal kayit YOK ve gozlemin kendisi zaten bir iki
+        # satir — iz olarak onu birakiyoruz, budanacak bir sey yok.
+        iz_satiri = (durum.iz(tur_no, tur.arac, tur.args, yapisal)
+                     if yapisal is not None else sonuc)
+        kayit["iz_krk"] = len(iz_satiri)        # budamanin kazandirdigi yer: gozlem_krk - iz_krk
         _olcum_yaz(kayit, basla, sayac0)
 
-        gecmis.append({"role": "model",
-                       "parts": [{"text": json.dumps(tur.model_dump(), ensure_ascii=False)}]})
-        gecmis.append({"role": "user", "parts": [{"text": sonuc}]})
+        d.tur_ekle(tur.model_dump(), sonuc, iz_satiri)
 
     return {"cevap": None, "turlar": turlar, "durma_sebebi": "hard_cap"}
 
@@ -245,16 +265,28 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     varsayilan = "Monster gibi psikolojik gerilim, ahlaki ikilem barindiran bir sey"
-    sorgu = " ".join(sys.argv[1:]) or varsayilan     # python dongu.py "baska bir sorgu"
-    print(f"SORGU: {sorgu}\n")
+    # python dongu.py "sorgu"              -> budamali (durum.PENCERE)
+    # python dongu.py --pencere 99 "sorgu" -> budamasiz taban olcum
+    argv = sys.argv[1:]
+    pencere = durum.PENCERE
+    if "--pencere" in argv:
+        i = argv.index("--pencere")
+        pencere = int(argv[i + 1])
+        argv = argv[:i] + argv[i + 2:]
+    sorgu = " ".join(argv) or varsayilan
+    budama = "budamasiz" if pencere >= HARD_CAP else "budamali"
+    print(f"SORGU: {sorgu}\nPENCERE: {pencere}  ({budama})\n")
     llm.sayac.sifirla()          # app.py ile ayni: kosu basi maliyet, kumulatif degil
-    sonuc = dongu(sorgu)
+    sonuc = dongu(sorgu, pencere=pencere)
     print(f"\ndurma sebebi: {sonuc['durma_sebebi']} | tur sayisi: {len(sonuc['turlar'])}")
     for t in sonuc["turlar"]:
         print(f"  {t['no']}. {t['dusunce'][:70]}")
         print(f"     arac={t['arac']} args={t['args']}"
               f"{'  [TEKRAR - calistirilmadi]' if t.get('tekrar') else ''}")
-        print(f"     gozlem={t['gozlem_krk']} krk | {t['sure_sn']} sn | "
-              f"{t['llm_cagri']} llm cagrisi | {t['girdi_tok']}+{t['cikti_tok']} tok")
+        print(f"     gozlem={t['gozlem_krk']} krk -> iz={t.get('iz_krk', 0)} krk | "
+              f"{t['sure_sn']} sn | {t['llm_cagri']} llm cagrisi | "
+              f"{t['girdi_tok']}+{t['cikti_tok']} tok")
+        print(f"     baglam: {t['gonderilen_tok']} tok "
+              f"(budamasiz {t['budamasiz_tok']})")
     print(f"\nCEVAP:\n{sonuc['cevap']}")
     print(f"\n{llm.sayac.ozet()}")

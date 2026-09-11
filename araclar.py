@@ -105,7 +105,7 @@ def _kirp_metin(metin: str, limit: int = config.AJAN_OZET_KRK) -> str:
 
 
 @tool
-def ara(sorgu: str, medya: str = "hepsi", k: int = 5) -> str:
+def ara(sorgu: str, medya: str = "hepsi", k: int = 5) -> tuple[str, list[dict]]:
     """Capraz-medya corpus'unda (anime/film/kitap) arama yapar.
 
     sorgu: Aranacak metin. Kullanicinin cumlesi degil, ARAMAYA UYGUN bir tarif
@@ -114,11 +114,15 @@ def ara(sorgu: str, medya: str = "hepsi", k: int = 5) -> str:
         "hepsi" capraz medya onerisi verir.
     k: Kac sonuc dondurulecek.
     """
-    # _getir_kirp cagir, sonra _metin ile LLM'e okunur hale getir
+    # IKI MUSTERI, IKI DONUS (Gun 3-4'te eklendi):
+    #   metin     -> modelin baglamina giren sey
+    #   getirilen -> durum.iz()'in okudugu yapisal kayitlar (tepe skor, basliklar)
+    # Tek donus birakip izi metinden regex'le geri cikarmak, ya da izi kurmak icin
+    # retrieval'i ikinci kez cagirmak (HyDE dahil ikinci fatura) alternatifleriydi.
     getirilen = _getir_kirp(sorgu=sorgu, medya=medya, k=k)
     metin = _metin(getirilen)
-    return metin
-    
+    return metin, getirilen
+
 
 
 def _getir_kirp(sorgu: str, medya: str = "hepsi", k: int = 5) -> list[dict]:
@@ -168,4 +172,4 @@ def _metin(sonuclar: list[dict]) -> str:
 if __name__ == "__main__":
     # elle deneme: python araclar.py
     print(ARACLAR["ara"]["sema"])
-    print(ara("psikolojik gerilim, ahlaki ikilem, seri katil takibi"))
+    print(ara("psikolojik gerilim, ahlaki ikilem, seri katil takibi")[0])
