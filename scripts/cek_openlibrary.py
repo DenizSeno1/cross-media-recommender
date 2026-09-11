@@ -23,10 +23,12 @@ Kullanim:
 """
 
 import argparse
+import collections
 import json
 import re
 import logging
 import sys
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -138,18 +140,37 @@ def _turleri_esle(ham_subjects: list[str], aranan_konu: str) -> list[str]:
     return bulunan
 
 
+_yerel = threading.local()
+
+# _detay'in "cekilemedi" hali. "aciklama yok" ile AYNI SEY DEGIL: birincisi BIZIM
+# hatamiz (ag/kota), ikincisi verinin ozelligi. Ayni torbaya konursa gecici bir 429
+# dalgasi "bu kitaplarin aciklamasi yok" diye raporlanir ve kayip gorunmez olur.
+CEKILEMEDI = object()
+
+
 def _oturum() -> requests.Session:
-    s = requests.Session()
-    s.headers["User-Agent"] = "cross-media-recommender/0.1 (ds.denizsenol@gmail.com)"
+    """Is parcacigi BASINA bir oturum. requests.Session thread-safe DEGIL (cookie jar,
+    redirect ve adapter durumu paylasilir); tek oturumu ISCI tane isciye vermek dusuk
+    siklikli ve izsiz hatalar uretir — bozulan istek _detay'dan None olarak doner, o da
+    "aciklama yok" diye sayilirdi."""
+    s = getattr(_yerel, "oturum", None)
+    if s is None:
+        s = requests.Session()
+        s.headers["User-Agent"] = "cross-media-recommender/0.1 (ds.denizsenol@gmail.com)"
+        _yerel.oturum = s
     return s
 
 
-def _liste(oturum, konu: str, offset: int) -> list[dict]:
-    """Bir konunun eser listesinden bir sayfa. Hata/bos -> []."""
+def _liste(konu: str, offset: int) -> list[dict] | None:
+    """Bir konunun eser listesinden bir sayfa.
+
+    Konu bittiyse [] · dort denemede de cekilemediyse None. Ikisi AYRI SEY: birincisi
+    havuzun sonu, ikincisi gecici bir ag hatasi. Ayni sayilirsa bir 503 dalgasi
+    "konu tukendi" diye loglanir ve konu sessizce yarim kalir."""
     for deneme in range(4):
         try:
-            r = oturum.get(f"{TABAN}/subjects/{konu}.json",
-                           params={"limit": SAYFA, "offset": offset}, timeout=30)
+            r = _oturum().get(f"{TABAN}/subjects/{konu}.json",
+                              params={"limit": SAYFA, "offset": offset}, timeout=30)
         except requests.RequestException as e:
             log.warning("%s @ %d istek hatasi: %s", konu, offset, e)
             time.sleep(2 ** deneme)
@@ -158,39 +179,59 @@ def _liste(oturum, konu: str, offset: int) -> list[dict]:
             return r.json().get("works", [])
         log.warning("%s @ %d durum %d", konu, offset, r.status_code)
         time.sleep(2 ** deneme)
-    return []
+    return None
 
 
-def _detay(oturum, anahtar: str) -> tuple[str, list[str]] | None:
-    """Eser detayindan (aciklama, ham_subjects). Aciklama yoksa None."""
-    try:
-        r = oturum.get(f"{TABAN}{anahtar}.json", timeout=30)
-    except requests.RequestException:
-        return None
-    if r.status_code != 200:
-        return None
-    d = r.json()
-    ozet = d.get("description")
-    if isinstance(ozet, dict):           # OL bazen {"type":..., "value": "..."} doner
-        ozet = ozet.get("value")
-    ozet = (ozet or "").strip()
-    if not ozet:
-        return None
-    return ozet, (d.get("subjects") or [])
+def _detay(anahtar: str):
+    """Eser detayindan (aciklama, ham_subjects).
+
+    Aciklama yoksa None · istek dort denemede de tutmadiysa CEKILEMEDI. _liste gibi
+    yeniden dener: 12 es zamanli istek atiyoruz, tek bir 429/503 yuzunden eseri
+    "aciklamasiz" sayip atmak veriyi sessizce kaybetmek olur."""
+    for deneme in range(4):
+        try:
+            r = _oturum().get(f"{TABAN}{anahtar}.json", timeout=30)
+        except requests.RequestException as e:
+            log.warning("%s istek hatasi: %s", anahtar, e)
+            time.sleep(2 ** deneme)
+            continue
+        if r.status_code == 200:
+            d = r.json()
+            ozet = d.get("description")
+            if isinstance(ozet, dict):   # OL bazen {"type":..., "value": "..."} doner
+                ozet = ozet.get("value")
+            ozet = (ozet or "").strip()
+            if not ozet:
+                return None
+            return ozet, (d.get("subjects") or [])
+        if r.status_code in (403, 404):  # kalici: eser yok / erisim kapali
+            return None
+        log.warning("%s durum %d", anahtar, r.status_code)
+        time.sleep(2 ** deneme)
+    return CEKILEMEDI
 
 
-def mevcut_idler(yol: Path) -> set[str]:
+def mevcut_idler(yol: Path) -> tuple[set[str], collections.Counter]:
+    """Dosyadaki work id'leri + KONU BASINA kayit sayisi.
+
+    Konu sayaci sart: `kota` konu basina TOPLAM hedef, "bu kosunun hedefi" degil.
+    Sayilmazsa kesilmis bir kosu yeniden baslatildiginda her konu kotayi BASTAN
+    doldurur (yarim kalmis 300'luk bir konu 634'e cikar) ve --hedef asilir.
+    Donen id'ler CIPLAK ('OL262454W') — dosyaya yazilan bicimin aynisi."""
     if not yol.exists():
-        return set()
+        return set(), collections.Counter()
     idler = set()
+    konu_sayaci = collections.Counter()
     with yol.open(encoding="utf-8") as f:
         for satir in f:
             if satir.strip():
                 try:
-                    idler.add(json.loads(satir)["id"])
+                    kayit = json.loads(satir)
+                    idler.add(kayit["id"])
                 except (json.JSONDecodeError, KeyError):
                     continue
-    return idler
+                konu_sayaci[kayit.get("_arandigi_konu")] += 1
+    return idler, konu_sayaci
 
 
 def main() -> None:
@@ -200,39 +241,59 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 
     CIKTI.parent.mkdir(parents=True, exist_ok=True)
-    gorulen = mevcut_idler(CIKTI)
+    gorulen, konu_sayaci = mevcut_idler(CIKTI)
     kota = -(-args.hedef // len(KONULAR))          # konu basina, yukari yuvarla
     log.info("dosyada %d kitap var | hedef %d | %d konu x %d kota",
              len(gorulen), args.hedef, len(KONULAR), kota)
 
-    oturum = _oturum()
-    yeni_toplam = atlanan_bos = 0
+    yeni_toplam = atlanan_bos = cekilemeyen = 0
 
-    with CIKTI.open("a", encoding="utf-8") as f:
+    # Havuz konu dongusunun DISINDA: sayfa basina yeni havuz kurmak ~750 kez 12 is
+    # parcacigi acip kapatmak demekti. Oturum zaten is parcacigi basina (_oturum).
+    havuz = ThreadPoolExecutor(max_workers=ISCI)
+    with CIKTI.open("a", encoding="utf-8") as f, havuz:
         for konu in KONULAR:
-            konu_yeni, offset = 0, 0
+            # Kota TOPLAM hedef, "bu kosunun hedefi" degil: dosyada o konudan kac kayit
+            # varsa sayaci ORADAN baslat. 0'dan baslamak, kesilmis bir kosuyu her yeniden
+            # baslatista kotayi BASTAN doldurmaya cevirir ve --hedef asilir.
+            konu_yeni, offset = konu_sayaci.get(konu, 0), 0
+            if konu_yeni >= kota:
+                log.info("%-28s kota dolu (%d/%d), atlandi", konu, konu_yeni, kota)
+                continue
             while konu_yeni < kota:
-                eserler = _liste(oturum, konu, offset)
+                eserler = _liste(konu, offset)
+                if eserler is None:               # cekilemedi != konu bitti
+                    log.error("%s: liste %d CEKILEMEDI — konu YARIM kaldi, tekrar kos",
+                              konu, offset)
+                    break
                 if not eserler:
                     log.info("%s: liste %d'de bitti", konu, offset)
                     break
                 offset += SAYFA
 
-                adaylar = [w for w in eserler if w.get("key") and w["key"] not in gorulen]
+                # Karsilastirma CIPLAK id ile: mevcut_idler dosyadan ciplak id okuyor,
+                # w["key"] ise "/works/OL262454W". Ikisi esitlenmezse dosyadaki hicbir
+                # kayit "gorulmus" sayilmaz ve resume her seyi yeniden yazar.
+                adaylar = [w for w in eserler
+                           if w.get("key") and w["key"].rsplit("/", 1)[-1] not in gorulen]
                 if not adaylar:
                     continue
 
                 t0 = time.time()
-                with ThreadPoolExecutor(max_workers=ISCI) as havuz:
-                    detaylar = list(havuz.map(lambda w: _detay(oturum, w["key"]), adaylar))
+                detaylar = list(havuz.map(_detay, [w["key"] for w in adaylar]))
 
+                yazilan = 0
                 for w, det in zip(adaylar, detaylar):
+                    if det is CEKILEMEDI:         # ag/kota hatasi: "aciklamasiz" DEGIL
+                        cekilemeyen += 1
+                        continue
                     if det is None:
                         atlanan_bos += 1
                         continue
                     ozet, ham_subjects = det
+                    ol_id = w["key"].rsplit("/", 1)[-1]          # OL262458W
                     kayit = {
-                        "id": w["key"].rsplit("/", 1)[-1],       # OL262458W
+                        "id": ol_id,
                         "media": "kitap",
                         "title": w.get("title") or "",
                         "overview": ozet,
@@ -246,18 +307,22 @@ def main() -> None:
                         "edition_count": w.get("edition_count", 0),
                     }
                     f.write(json.dumps(kayit, ensure_ascii=False) + "\n")
-                    gorulen.add(w["key"])
+                    gorulen.add(ol_id)
                     konu_yeni += 1
                     yeni_toplam += 1
+                    yazilan += 1
                     if konu_yeni >= kota:
                         break
                 f.flush()
                 log.info("%-28s +%-3d (konu %d/%d, toplam %d) %.1f eser/sn",
-                         konu, len(adaylar), konu_yeni, kota, yeni_toplam,
+                         konu, yazilan, konu_yeni, kota, yeni_toplam,
                          len(adaylar) / max(time.time() - t0, 0.01))
 
-    log.info("BITTI: %d yeni kitap | %d aciklamasiz atlandi | dosya %s",
-             yeni_toplam, atlanan_bos, CIKTI)
+    log.info("BITTI: %d yeni kitap | %d aciklamasiz atlandi | %d CEKILEMEDI | dosya %s",
+             yeni_toplam, atlanan_bos, cekilemeyen, CIKTI)
+    if cekilemeyen:
+        log.warning("%d eser ag/kota hatasi yuzunden ALINAMADI — bunlar 'aciklamasiz' "
+                    "degil, kayip. Tekrar kosmak onlari yeniden dener.", cekilemeyen)
 
 
 if __name__ == "__main__":

@@ -56,6 +56,15 @@ def auc(basarili: list[float], basarisiz: list[float]) -> float:
     return kazanc / (len(basarili) * len(basarisiz))
 
 
+def _ort(degerler):
+    """Bos grupta nan — auc()'un bos grupta yaptiginin aynisi.
+
+    Neden gerekli: butun sorgular basarili (ya da butun sorgular basarisiz) bir konfigda
+    iyi/kotu gruplarindan biri bos kalir ve ortalama ZeroDivisionError verirdi — olcum
+    kosusu tamamen odendikten SONRA, raporu basarken."""
+    return sum(degerler) / len(degerler) if degerler else float("nan")
+
+
 def rapor(satirlar):
     n_basari = sum(r["basari"] for r in satirlar)
     print(f"\n{len(satirlar)} sorgu — basarili {n_basari}, basarisiz {len(satirlar) - n_basari}"
@@ -71,8 +80,8 @@ def rapor(satirlar):
         iyi = [r[ad] for r in satirlar if r["basari"]]
         kotu = [r[ad] for r in satirlar if not r["basari"]]
         a = auc(iyi, kotu)
-        print(f"{ad:<11} basarili ort {sum(iyi)/len(iyi):.4f} | "
-              f"basarisiz ort {sum(kotu)/len(kotu):.4f} | AUC {a:.3f}")
+        print(f"{ad:<11} basarili ort {_ort(iyi):.4f} | "
+              f"basarisiz ort {_ort(kotu):.4f} | AUC {a:.3f}")
 
     print("\nNOT: sorgu basina TEK cekilis. AUC 0.5'e yakinsa sinyal bilgi tasimiyor;"
           "\n0.5'ten uzaksa (iki yone de) tasiyor. Tek kosu, guven araligi YOK.")

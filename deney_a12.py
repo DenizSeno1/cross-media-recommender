@@ -8,7 +8,7 @@ nasil doldurulacagini tartis.
 Kosum (iki AYRI surec, cunku config bayragi import aninda okunuyor):
     BELGE_TURLER=1 python deney_a12.py       -> data/a12_turler_acik.json
     BELGE_TURLER=0 python deney_a12.py       -> data/a12_turler_kapali.json
-    python deney_a12.py --karsilastir        -> isaret testi + recall farki
+    python deney_a12.py --karsilastir        -> isaret testi + havuz@k farki
 
 hyde_cache=True (eval varsayilani): iki varyant AYNI sahte belgelerle kosar,
 tek degisken corpus metni olur.
@@ -16,7 +16,6 @@ tek degisken corpus metni olur.
 
 import argparse
 import json
-from pathlib import Path
 
 import config
 import eval as ev
@@ -32,7 +31,13 @@ def kos():
     olcu = {}
     for k in (5, 10, 50):
         bulunan = sum(1 for s in siralar if s is not None and s <= k)
-        olcu[f"recall@{k}"] = bulunan / len(siralar)
+        # "havuz@k", "recall@k" DEGIL: bu sayi TEK bir getir(k=50) listesinin ilk k'sina
+        # bakiyor, urunun getir(k=k) ile dondurdugu listeye degil. Kota k ile olcekleniyor
+        # (k=50 -> 30/10/10, k=5 -> 3/1/1), yani iki listenin BILESIMI farkli. Urun sayisi
+        # icin ev.isabet_at_k var (A13). A/B icin havuz olcusu daha hassas, ama adi
+        # urun olcusunu ima etmemeli. NOT: eski a12_*.json dosyalari "recall@k" anahtarli
+        # -> --karsilastir icin iki dosya AYNI surumle uretilmis olmali.
+        olcu[f"havuz@{k}"] = bulunan / len(siralar)
     olcu["MRR"] = sum(1 / s for s in siralar if s is not None) / len(siralar)
     yol.write_text(json.dumps({"siralar": siralar, "olcu": olcu}, ensure_ascii=False),
                    encoding="utf-8")

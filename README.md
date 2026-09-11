@@ -73,7 +73,7 @@ Film/kitap çekicileri `TMDB_API_KEY` ve `GOOGLE_BOOKS_API_KEY`, MAL sinopsis ç
 `MAL_CLIENT_ID` ister. Rate limit'e nazik davranıyorlar; ilk tam çekim saatler sürer —
 **bir kez koşulur, sonuç dondurulur.**
 
-İlk açılışta 7807 kayıt gömülür (CPU'da birkaç dakika) ve `cache/*.npy` olarak saklanır;
+İlk açılışta 12104 kayıt gömülür (CPU'da birkaç dakika) ve `cache/*.npy` olarak saklanır;
 sonraki açılışlar onu okur.
 
 > `cache/hyde/` **bilerek repoda**: 47 dondurulmuş sahte belge. `eval.py`'nin tekrarlanabilir
@@ -81,7 +81,8 @@ sonraki açılışlar onu okur.
 
 ### Demo modu — veri çekmeden çalıştırma
 
-`demo/` klasörü **önceden hesaplanmış vektörleri** (7807×1024, tam corpus'tan, float16) ve
+`demo/` klasörü **önceden hesaplanmış vektörleri** (7807×1024, float16 — paket 2026-09-06'da,
+kitap kaynağı Open Library'ye taşınmadan önceki corpus'tan üretildi) ve
 telifsiz meta bilgiyi (başlık, id, tür) taşıyor. **Sinopsis metni bu pakette yok** — üçüncü
 tarafa ait. Sonuçlar gerçek sistemle aynı, çünkü vektörler aynı.
 
@@ -153,8 +154,9 @@ sorgu YOKSA ──▶ zevk adaları ──▶ adalar arası round-robin ──�
 **Modeller:** `intfloat/multilingual-e5-large` (bi-encoder), `BAAI/bge-reranker-v2-m3`
 (cross-encoder, varsayılan kapalı), Gemini flash-lite (HyDE sahte belgesi + gerekçe metni).
 
-**Corpus dondurulmuş: 7807 kayıt** — 4880 anime (AniList metadata + MAL sinopsis), 2430 film
-(TMDB), 497 kitap (Google Books). Canlı API'den beslenen bir eval, ölçtüğü şeyi değiştirir:
+**Corpus dondurulmuş: 12104 kayıt** — 4880 anime (AniList metadata + MAL sinopsis), 2430 film
+(TMDB), 4794 kitap (Open Library eser kayıtları; 2026-09-10'a kadar 497 kayıtlık Google Books
+corpus'uydu). Canlı API'den beslenen bir eval, ölçtüğü şeyi değiştirir:
 `recall@5` düştüğünde suçlu senin kodun mu yoksa TMDB'nin güncellediği bir özet mi, bilemezsin.
 
 ---

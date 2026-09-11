@@ -18,7 +18,7 @@ olcecek bir sey kalmaz. Tekrarlanabilirlik icin ham satirlar diske yaziliyor.
 import json
 import random
 import time
-from pathlib import Path
+from collections import Counter
 
 import config
 import eval as ev
@@ -27,7 +27,10 @@ import sinyaller
 
 K = config.TOP_K
 TEKRAR = 5
-KAYIT = Path("data/gun0_cekilisler.json")
+# config.VERI uzerinden: bare "data/..." cwd'ye gore cozuluyordu, yani kosuyu repo
+# kokunun disindan baslatmak checkpoint'i gormemek (9 dk + 115 cagri bastan) ve ilk
+# yazmada FileNotFoundError demekti — isi kaybetmemek icin yazilmis dosyada.
+KAYIT = config.VERI / "gun0_cekilisler.json"
 # Ucretsiz katman dakikada ~15 istek veriyor; 115 cagriyi ard arda atinca 429.
 # 4.5 sn ara ~13 RPM -> kota altinda kalir. Toplam ~9 dk.
 BEKLEME = 4.5
@@ -38,8 +41,8 @@ def olc(tekrar: int = TEKRAR, k: int = K):
     tamamlanmis sorgular atlanir. 429 kota hatasi 115 cagrilik bir kosuda
     kacinilmaz; is kaybolmasin diye boyle."""
     satirlar = json.loads(KAYIT.read_text(encoding="utf-8")) if KAYIT.exists() else []
-    bitmis = {r["sorgu_no"] for r in satirlar
-              if sum(1 for x in satirlar if x["sorgu_no"] == r["sorgu_no"]) >= tekrar}
+    sayim = Counter(r["sorgu_no"] for r in satirlar)      # satir basina tam tarama yerine
+    bitmis = {no for no, kac in sayim.items() if kac >= tekrar}
 
     for s, (sorgu, beklenen_ham) in enumerate(ev.ALTIN_SET, 1):
         if s in bitmis:
@@ -69,18 +72,26 @@ def auc(iyi, kotu):
     return sum((a > b) + 0.5 * (a == b) for a in iyi for b in kotu) / (len(iyi) * len(kotu))
 
 
-def sorgu_ici_auc(satirlar, ad):
-    """Katmanli AUC: her sorgunun KENDI icinde ikili karsilastirma, sonra havuzla.
+def _grupla(satirlar, ad):
+    """{sorgu_no: ([deger, ...], [etiket, ...])} — satirlari BIR KEZ grupla.
 
-    Sadece hem basarili hem basarisiz cekilisi olan ('karisik') sorgular katkida
-    bulunur — digerlerinde karsilastirilacak cift yok.
-    """
+    permutasyon bunu 5000 kez kullaniyor; her cagrida yeniden gruplamak (sorgu basina
+    tum satirlari taramak) testi saniyeler yerine dakikalar suruyordu."""
+    gruplar = {}
+    for r in satirlar:
+        degerler, etiketler = gruplar.setdefault(r["sorgu_no"], ([], []))
+        degerler.append(r[ad])
+        etiketler.append(r["basari"])
+    return gruplar
+
+
+def _auc_gruplu(gruplar):
+    """Katmanli AUC, onceden gruplanmis veriden. Donus: (auc, karisik_sorgu, cift)."""
     kazanc = esit = toplam = 0
     karisik = 0
-    for no in {r["sorgu_no"] for r in satirlar}:
-        g = [r for r in satirlar if r["sorgu_no"] == no]
-        iyi = [r[ad] for r in g if r["basari"]]
-        kotu = [r[ad] for r in g if not r["basari"]]
+    for degerler, etiketler in gruplar.values():
+        iyi = [d for d, e in zip(degerler, etiketler) if e]
+        kotu = [d for d, e in zip(degerler, etiketler) if not e]
         if not iyi or not kotu:
             continue
         karisik += 1
@@ -94,20 +105,32 @@ def sorgu_ici_auc(satirlar, ad):
     return (kazanc + 0.5 * esit) / toplam, karisik, toplam
 
 
+def sorgu_ici_auc(satirlar, ad):
+    """Katmanli AUC: her sorgunun KENDI icinde ikili karsilastirma, sonra havuzla.
+
+    Sadece hem basarili hem basarisiz cekilisi olan ('karisik') sorgular katkida
+    bulunur — digerlerinde karsilastirilacak cift yok.
+    """
+    return _auc_gruplu(_grupla(satirlar, ad))
+
+
 def permutasyon(satirlar, ad, gozlem, N=5000):
-    """Etiketleri HER SORGUNUN ICINDE karistir — sorgu yapisi korunur."""
+    """Etiketleri HER SORGUNUN ICINDE karistir — sorgu yapisi korunur.
+
+    Gruplama DONGU DISINDA bir kez yapiliyor; her tekrarda yalnizca etiket listesi
+    karistiriliyor. Eskiden her tekrar 115 dict kopyalayip gruplamayi bastan kuruyordu
+    (2 sinyal x 5000 tekrar = ~26M satir karsilastirmasi). Karistirma sirasi ayni
+    kaldigi icin p degeri de ayni."""
     rnd = random.Random(0)
-    gruplar = {}
-    for r in satirlar:
-        gruplar.setdefault(r["sorgu_no"], []).append(r)
+    gruplar = _grupla(satirlar, ad)
     sayac = 0
     for _ in range(N):
-        sahte = []
-        for g in gruplar.values():
-            etiketler = [r["basari"] for r in g]
-            rnd.shuffle(etiketler)
-            sahte += [{**r, "basari": e} for r, e in zip(g, etiketler)]
-        a, _, _ = sorgu_ici_auc(sahte, ad)
+        sahte = {}
+        for no, (degerler, etiketler) in gruplar.items():
+            karisik_etiket = list(etiketler)
+            rnd.shuffle(karisik_etiket)
+            sahte[no] = (degerler, karisik_etiket)
+        a, _, _ = _auc_gruplu(sahte)
         if a is not None and abs(a - 0.5) >= abs(gozlem - 0.5):
             sayac += 1
     return sayac / N

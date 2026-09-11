@@ -36,21 +36,36 @@ def _temizle(h: str) -> str:
     return re.sub(r"<[^>]+>", "", h or "").strip()
 
 
+def ozet(m: dict) -> str:
+    """Kaydin SADECE sinopsisi — baslik ve tur oneki OLMADAN.
+
+    belge() bunu kullaniyor, ajan da (araclar._getir_kirp) kullaniyor. Ayri durmasinin
+    sebebi: ajana belge()'nin tamamini vermek basligi iki kez yaziyordu (bir kez kendi
+    satirinda, bir kez sinopsis metninin basinda) ve config.AJAN_OZET_KRK butcesinin bir
+    kismini baslik+tur onekine harciyordu."""
+    if m["media"] == "anime":
+        o = _temizle(m.get("description"))
+        if config.ANIME_KAYNAK == "mal":                    # A7: tek degisken = aciklama kaynagi
+            o = _mal().get(m.get("idMal")) or o             # MAL'da yoksa AniList'e dus (bosluk birakma)
+        return o
+    return m.get("overview") or ""                          # film / kitap
+
+
 def belge(m: dict) -> str:
     """Kayit -> gomulecek tek string. Anime ic ice title + description;
-    film/kitap duz title + overview. Format uc medyada AYNI (hizali uzay)."""
+    film/kitap duz title + overview. Format uc medyada AYNI (hizali uzay).
+
+    DIKKAT: bu fonksiyonun URETTIGI STRING index cache anahtaridir (retrieval._index
+    icerik hash'i aliyor). Bicimi degistirmek 12104 vektoru gecersiz kilar."""
     if m["media"] == "anime":
         bas = m["title"]["romaji"] or m["title"]["english"] or ""
-        ozet = _temizle(m.get("description"))
-        if config.ANIME_KAYNAK == "mal":                    # A7: tek degisken = aciklama kaynagi
-            ozet = _mal().get(m.get("idMal")) or ozet       # MAL'da yoksa AniList'e dus (bosluk birakma)
     else:                                                   # film / kitap
         bas = m["title"] or ""
-        ozet = m.get("overview") or ""
+    o = ozet(m)
     if not config.BELGE_TURLER:                  # A12 deneyi: tur alani cikarilmis varyant
-        return f"{bas}. {ozet}"
+        return f"{bas}. {o}"
     turler = ", ".join(m.get("genres") or [])
-    return f"{bas}. {turler}. {ozet}"
+    return f"{bas}. {turler}. {o}"
 
 
 def baslik(m: dict) -> str:

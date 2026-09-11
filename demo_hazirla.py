@@ -1,7 +1,7 @@
 """Demo eserlerini uretir: hazir vektorler + TELIFSIZ meta (sinopsis YOK).
 
 Neden boyle:
-  1. HF Spaces ucretsiz CPU'da (2 vCPU) 7807 dokumani her soguk acilista gommek
+  1. HF Spaces ucretsiz CPU'da (2 vCPU) 12104 dokumani her soguk acilista gommek
      dakikalar surer. Hazir vektor gondermek demo'nun kullanilabilir olmasi icin ZORUNLU.
   2. Sinopsis metni ucuncu tarafa ait. Vektor turetilmis bir donusum, baslik/id/tur ise
      olgu -> demo pakette KORUNAN metin yok.

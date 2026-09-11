@@ -114,7 +114,7 @@ def ara(sorgu: str, medya: str = "hepsi", k: int = 5) -> str:
         "hepsi" capraz medya onerisi verir.
     k: Kac sonuc dondurulecek.
     """
-    # TODO(sen): _getir_kirp cagir, sonra _metin ile LLM'e okunur hale getir
+    # _getir_kirp cagir, sonra _metin ile LLM'e okunur hale getir
     getirilen = _getir_kirp(sorgu=sorgu, medya=medya, k=k)
     metin = _metin(getirilen)
     return metin
@@ -139,7 +139,10 @@ def _getir_kirp(sorgu: str, medya: str = "hepsi", k: int = 5) -> list[dict]:
             {
                 "baslik": veri.baslik(kayit),
                 "tur": kayit["media"],
-                "aciklama": _kirp_metin(veri.belge(kayit)),
+                # veri.ozet, veri.belge DEGIL: belge() "baslik. turler. ozet" uretiyor,
+                # basligi _metin zaten kendi satirinda yaziyor. belge()'yi vermek basligi
+                # iki kez yazip AJAN_OZET_KRK butcesini de oneke harcamak olurdu.
+                "aciklama": _kirp_metin(veri.ozet(kayit)),
                 "link": veri.link(kayit),
                 "_idx": kayit["_idx"],   # V icindeki satir no — sinyaller.benzerlik kullaniyor
                 "_skor": kayit["_skor"],

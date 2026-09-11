@@ -74,7 +74,7 @@ def cekirdek_idler(liste: list[dict], corpus_idmal: set[int], min_puan: int = 8)
 def profil_vektoru(V: np.ndarray, satirlar: list[int]) -> np.ndarray:
     """Zevk vektoru: cekirdek animelerin embedding'lerinin ortalamasi, normalize edilmis.
 
-    V        : (7807, 1024) birlesik index — V[i] corpus[i]'nin vektoru
+    V        : (12104, 1024) birlesik index — V[i] corpus[i]'nin vektoru
     satirlar : cekirdek animelerin V'deki satir numaralari, orn. [12, 480, 3301, ...]
     Donus    : (1024,) birim vektor  (|v| = 1)
 
@@ -193,7 +193,7 @@ def iliskiler_yukle() -> list[dict]:
 
 def izlenen_seri_maskesi(corpus: list[dict], izlenen: set[int],
                          grup: dict[int, int]) -> np.ndarray:
-    """(7807,) bool dizi — True = bu kayit, izledigin bir seriyle AYNI grupta.
+    """(12104,) bool dizi — True = bu kayit, izledigin bir seriyle AYNI grupta.
 
     corpus  : veri.corpus_yukle() ciktisi (uc medya karisik)
     izlenen : izlenen_idler() ciktisi — MAL id'leri (idMal)
@@ -242,8 +242,9 @@ def kota_sec(sirali_idx: list[int], corpus: list[dict], grup: dict[int, int],
     Film/kitap `grup`ta yok -> her biri benzersiz sayilir.
 
     IKI TUR: 1. turda kotaya uyulur; k dolmadiysa 2. turda kalanlar sirayla eklenir.
-    Neden doldurma: k kullaniciya verilen bir soz. Kitap corpus'u ince (497, fantastik
-    dilimine sikismis); bu bir VERI sinirini kullanicinin eksik sonuc gormesine cevirmemeli.
+    Neden doldurma: k kullaniciya verilen bir soz. Kitap corpus'u INCEYDI (Google Books,
+    497, fantastik dilimine sikismis); Open Library'ye gecisle 4794'e cikti ama kural ayni
+    kaliyor — bir VERI sinirini kullanicinin eksik sonuc gormesine cevirmemeli.
     Kota bir HEDEF, garanti degil. (Deniz'in `seri_tekillestir`inin genisletilmis hali.)
     """
     if k <= 0:

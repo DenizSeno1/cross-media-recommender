@@ -15,7 +15,9 @@ GUN 0'IN BULGUSU BURAYA GIRIYOR (olculdu, 23 sorgu x 5 cekilis):
     8 sorgu, bes cekilisin BESINDE de basarisiz. HyDE her seferinde farkli sahte
     belge uretmesine ragmen sonuc degismedi.
     -> AYNI SORGUYLA TEKRAR ARAMAK FAYDASIZ. Ajan tekrar arayacaksa sorguyu
-       DEGISTIRMEK zorunda. Sistem prompt'unda bu yuzden acikca yaziyor.
+       DEGISTIRMEK zorunda. Sistem prompt'unda acikca yaziyor AMA prompt bir RICA:
+       dongu ayni (arac, args) ciftini ikinci kez CALISTIRMIYOR da. Olculmus bir
+       kurali modelin keyfine birakmiyoruz — HARD_CAP'in gerekcesiyle ayni gerekce.
 """
 
 import json
@@ -105,6 +107,19 @@ def _arac_calistir(ad: str, args: dict) -> str:
         return kayit["fonksiyon"](**args)
     except TypeError as h:
         return f"HATA: '{ad}' argumanlari uymadi: {h}"
+    except Exception as h:
+        # TypeError YETMIYOR. Model semadaki sozlugun DISINA cikan bir deger
+        # uretebiliyor ("Anime", "books", "kitaplar") ve o deger araci degil
+        # retrieval'i vuruyor: getir() bilinmeyen medya icin KeyError firlatiyor.
+        # Genis yakalama olmadan bu istisna dongu()'den kacar ve — aracin icindeki
+        # HyDE cagrisi zaten odenmisken — butun kosuyu oldururdu. Docstring'in
+        # verdigi soz "bozuk argumanlar GOZLEM olarak doner"; o sozu tek bir
+        # istisna tipiyle tutamayiz. Tip adi mesaja giriyor ki ajan neyi
+        # duzeltecegini bilsin.
+        log.warning("arac '%s' hata verdi: %s: %s", ad, type(h).__name__, h)
+        return (f"HATA: '{ad}' calistirilamadi ({type(h).__name__}: {h}). "
+                f"Argumanlari semaya gore duzelt; 'medya' yalnizca "
+                f"anime/film/kitap/hepsi olabilir.")
 
 
 # ---------------------------------------------------------------------------
@@ -133,6 +148,18 @@ class Tur(BaseModel):
     cevap: str | None = None
 
 
+def _olcum_yaz(kayit: dict, basla: float, sayac0: tuple) -> None:
+    """Turun olcum alanlarini doldur — sure ve token TURUN TAMAMI icin.
+
+    llm.sayac surec genelinde kumulatif; burada turun BASINDAKI degerden fark
+    aliniyor. Boylece onarim denemeleri ve aracin icindeki HyDE cagrisi da tur
+    kaydina giriyor — kumulatif ozet bunlari tur basina ayirmiyor."""
+    kayit["sure_sn"] = round(time.perf_counter() - basla, 2)
+    kayit["llm_cagri"] = llm.sayac.cagri - sayac0[0]
+    kayit["girdi_tok"] = llm.sayac.girdi - sayac0[1]
+    kayit["cikti_tok"] = llm.sayac.cikti - sayac0[2]
+
+
 def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
     """Ajani calistirir: model karar verir, arac cagrilir, sonuc geri beslenir.
 
@@ -143,9 +170,16 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
         "durma_sebebi": str,        # "cevap" | "hard_cap"
     }
 
-    Her turun kaydi EN AZ sunlari tutmali (Gun 9-10 bunlari olcecek):
+    Her turun kaydi (Gun 9-10 bunlari olcecek):
         {"no": 1, "dusunce": ..., "arac": "ara", "args": {...},
-         "gozlem_krk": 1840, "sure_sn": 2.3}
+         "gozlem_krk": 1840, "sure_sn": 2.3,
+         "llm_cagri": 2, "girdi_tok": 3120, "cikti_tok": 88}
+
+    sure_sn ve token alanlari TURUN TAMAMINI kapsar: modele sorma (_llm_turu'nun
+    onarim denemeleri dahil) + arac calistirma (aracin icindeki HyDE cagrisi dahil).
+    Eskiden sure yalnizca arac cagrisini olcuyordu ve token hic yoktu: "fatura tur
+    basina odenir" diyen bir dosyada faturayi GOSTERMEYEN kayit, olcmedigi seyi
+    yok sanar. 6 turluk bir kosu 18 LLM cagrisi odemis olabilir.
 
     Govde dort adim, sirayla:
         1) modele sor          -> _llm_turu(gecmis)
@@ -168,20 +202,38 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP) -> dict:
                            ensure_ascii=False, indent=2),
         sorgu=sorgu)}]}]
     turlar = []
+    gorulen_cagri = set()          # (arac, args) — ayni hamle ikinci kez CALISTIRILMAZ
     for tur_no in range(1, hard_cap + 1):
+        # Olcum TURUN BASINDA basliyor: modelin kendi cagrisi (ve _llm_turu'nun
+        # onarim denemeleri) turun hem gecikmesinin hem faturasinin buyuk kismi.
+        basla = time.perf_counter()
+        sayac0 = (llm.sayac.cagri, llm.sayac.girdi, llm.sayac.cikti)
         tur = _llm_turu(gecmis)
-        # Kayit ONCE olusturulup listeye konuyor, olcum alanlari arac cagrisindan
-        # SONRA doldurulacak (asagida). Boylece cevapla biten turda da kayit var.
+        # Kayit ONCE olusturulup listeye konuyor, olcum alanlari asagida doldurulacak.
+        # Boylece cevapla biten turda da kayit var.
         kayit = {"no": tur_no, "dusunce": tur.dusunce, "arac": tur.arac,
-                 "args": tur.args, "gozlem_krk": 0, "sure_sn": 0.0}
+                 "args": tur.args, "gozlem_krk": 0, "sure_sn": 0.0,
+                 "llm_cagri": 0, "girdi_tok": 0, "cikti_tok": 0}
         turlar.append(kayit)
         if tur.cevap:
+            _olcum_yaz(kayit, basla, sayac0)
             return {"cevap": tur.cevap, "turlar": turlar, "durma_sebebi": "cevap"}
 
-        basla = time.perf_counter()
-        sonuc = _arac_calistir(tur.arac, tur.args)
-        kayit["sure_sn"] = round(time.perf_counter() - basla, 2)
+        # Gun 0'in bulgusu BURADA uygulaniyor (dosya basina bak): ayni cagri ikinci
+        # kez calistirilmaz. Sebep gozlem olarak donuyor ki ajan hamlesini degistirsin.
+        imza = (tur.arac, json.dumps(tur.args, ensure_ascii=False, sort_keys=True))
+        if imza in gorulen_cagri:
+            log.warning("tur %d: ayni arac cagrisi tekrarlandi, CALISTIRILMADI", tur_no)
+            kayit["tekrar"] = True
+            sonuc = ("HATA: bu arac cagrisini AYNI argumanlarla daha once yaptin, "
+                     "sonucu yukarida. Olculdu: ayni sorguyla tekrar aramak sonucu "
+                     "degistirmiyor. Sorguyu DEGISTIR (baska kelimeler, baska tema "
+                     "vurgusu, medya kisitini gevset) ya da elindekiyle cevap ver.")
+        else:
+            gorulen_cagri.add(imza)
+            sonuc = _arac_calistir(tur.arac, tur.args)
         kayit["gozlem_krk"] = len(sonuc)        # gozlemin baglama getirdigi yuk
+        _olcum_yaz(kayit, basla, sayac0)
 
         gecmis.append({"role": "model",
                        "parts": [{"text": json.dumps(tur.model_dump(), ensure_ascii=False)}]})
@@ -195,11 +247,14 @@ if __name__ == "__main__":
     varsayilan = "Monster gibi psikolojik gerilim, ahlaki ikilem barindiran bir sey"
     sorgu = " ".join(sys.argv[1:]) or varsayilan     # python dongu.py "baska bir sorgu"
     print(f"SORGU: {sorgu}\n")
+    llm.sayac.sifirla()          # app.py ile ayni: kosu basi maliyet, kumulatif degil
     sonuc = dongu(sorgu)
     print(f"\ndurma sebebi: {sonuc['durma_sebebi']} | tur sayisi: {len(sonuc['turlar'])}")
     for t in sonuc["turlar"]:
         print(f"  {t['no']}. {t['dusunce'][:70]}")
-        print(f"     arac={t['arac']} args={t['args']}")
-        print(f"     gozlem={t['gozlem_krk']} krk | {t['sure_sn']} sn")
+        print(f"     arac={t['arac']} args={t['args']}"
+              f"{'  [TEKRAR - calistirilmadi]' if t.get('tekrar') else ''}")
+        print(f"     gozlem={t['gozlem_krk']} krk | {t['sure_sn']} sn | "
+              f"{t['llm_cagri']} llm cagrisi | {t['girdi_tok']}+{t['cikti_tok']} tok")
     print(f"\nCEVAP:\n{sonuc['cevap']}")
     print(f"\n{llm.sayac.ozet()}")

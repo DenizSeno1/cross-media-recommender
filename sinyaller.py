@@ -41,8 +41,12 @@ def skor_bandi(sonuclar: list[dict]) -> float:
     girdi : araclar._getir_kirp ciktisi — her dict'te '_skor' var
     cikti : float
     """
+    if not sonuclar:
+        # Bos liste: olculecek bant yok. nan, auc()'un bos grupta yaptiginin aynisi —
+        # 0.0 donmek "bant yok, model bilmiyor" diye OKUNUR ve sinyali sessizce bozar.
+        return float("nan")
     skorlar = np.array([x["_skor"] for x in sonuclar])
-    return skorlar.max() - np.median(skorlar)
+    return float(skorlar.max() - np.median(skorlar))
 
 
 def benzerlik(sonuclar: list[dict]) -> float:
@@ -57,7 +61,7 @@ def benzerlik(sonuclar: list[dict]) -> float:
             Iki okumasi da var — hangisinin dogru oldugu OLCUMDEN cikacak.
 
     Kullanacagin malzeme:
-        _, V, _, _ = retrieval._hazirla()   # V: (7807, 1024), satirlar NORMALIZE
+        _, V, _, _ = retrieval._hazirla()   # V: (12104, 1024), satirlar NORMALIZE
         V[kayit["_idx"]]                    # bir sonucun vektoru
         V normalize oldugu icin kosinus = nokta carpimi (np.dot), bolme YOK.
 
@@ -66,11 +70,16 @@ def benzerlik(sonuclar: list[dict]) -> float:
     girdi : araclar._getir_kirp ciktisi — her dict'te '_idx' var
     cikti : float
     """
+    if len(sonuclar) < 2:
+        # Tek (ya da sifir) sonucta ikili benzerlik TANIMSIZ: n*(n-1) = 0.
+        # getir() k'dan AZ kayit donebiliyor (aday havuzu tekillestirmeden sonra
+        # tukenirse) ve araclar.ara k'yi modele birakiyor — yani bu hal erisilebilir.
+        return float("nan")
     _, V, _, _ = retrieval._hazirla()
-    vektörler = np.array([V[x["_idx"]] for x in sonuclar])
-    benzerlikler = np.dot(vektörler, vektörler.T)
+    vektorler = np.array([V[x["_idx"]] for x in sonuclar])
+    benzerlikler = np.dot(vektorler, vektorler.T)
     np.fill_diagonal(benzerlikler, 0)
-    return benzerlikler.sum() / (len(sonuclar) * (len(sonuclar) - 1))
+    return float(benzerlikler.sum() / (len(sonuclar) * (len(sonuclar) - 1)))
 
 if __name__ == "__main__":
     # elle deneme: python sinyaller.py

@@ -6,8 +6,8 @@ medya filtresi dahil, yani OLCTUGUN SEY URUNUN KENDISI. Eval urunle ayni yoldan
 gecmiyorsa olctugu sey urun degil.
 
 UYARI — SAYILAR GUN 10-11 ILE DOGRUDAN KIYASLANAMAZ:
-  Gun 10-11 index'i anime-only (4880). Bu paket birlesik (7807: +2430 film +497 kitap).
-  Ayni anime gold'u artik 2927 fazla belgeyle yarisiyor -> recall dusebilir ve bu
+  Gun 10-11 index'i anime-only (4880). Bu paket birlesik (12104: +2430 film +4794 kitap).
+  Ayni anime gold'u artik 7224 fazla belgeyle yarisiyor -> recall dusebilir ve bu
   REGRESYON DEGIL, farkli bir olcum. Kiyaslama yapacaksan `medya="anime"` ile kos.
 
 HyDE VARYANSI — iki ayri soru, iki ayri kurulum:
@@ -35,7 +35,8 @@ import veri
 # NEDEN AD-ALANLI: TMDB id'leri ile MAL id'leri CAKISIR (Godfather'in TMDB id'si 238, ayni
 # sayi gecerli bir MAL id'si de). Cip lak int tutsaydik bir film gold'u yanlislikla bir anime'yi
 # dogru sayabilirdi — sessiz eval hatasi, Gun 3-4'te bir kez yasandi (AniList id vs idMal).
-# anime -> idMal (AniList id DEGIL) · film -> TMDB id · kitap -> Google Books id.
+# anime -> idMal (AniList id DEGIL) · film -> TMDB id · kitap -> Open Library ESER
+# anahtari ("OL262454W"; kaynak 2026-09-10'da Google Books'tan tasindi).
 # Her gold serinin KANONIK BAZ girdisi (Haikyuu 1. sezon, Rocky 1976, Godfather 1972).
 ALTIN_SET = [
     # --- anime (Gun 3-4'ten, degistirilmedi: eski sayilar yeniden uretilebilsin) ---
@@ -71,8 +72,9 @@ ALTIN_SET = [
     ("insanların rüyalarına girip fikir çalmayı konu alan soygun ve aksiyon filmi", [("film", 27205)]),   # Inception
     ("bir boksörün dipten zirveye yükselişini anlatan kült spor draması", [("film", 1366)]),              # Rocky (1976)
 
-    # --- kitap: HENUZ YOK. Kitap corpus'u (497) fantastik/cocuk klasikleri dilimine sikismis
-    #     (Narnia, Moomin, Tolkien, Harry Potter) -> gold ancak o dilimde yazilabilir. Karar bekliyor.
+    # --- kitap: HENUZ YOK. Eski Google Books corpus'u (497) fantastik/cocuk klasikleri
+    #     dilimine sikismisti; Open Library'ye gecisle 4794 esere cikti (15 konu havuzu),
+    #     yani gold yazmanin onundeki VERI engeli kalkti. Karar bekliyor.
 ]
 
 
@@ -191,11 +193,22 @@ def isabet_at_k(altin_set=ALTIN_SET, k_listesi=(5, 10), hyde_cache=True,
 
 
 def degerlendir(altin_set=ALTIN_SET, k_listesi=(5, 10, 50), hyde_cache=True,
-                kota=True, tekillestir=True, franchise=True, **getir_ayar):
-    """altin_set uzerinde retrieval.getir()'i kos, recall@k + MRR bas.
+                kota=True, tekillestir=True, franchise=True, urun=None, **getir_ayar):
+    """altin_set uzerinde retrieval.getir()'i kos, recall@k + MRR (+ isabet@k) bas.
 
     getir_ayar dogrudan retrieval.getir()'e gecer (medya, rerank, hyde_n...).
     Konfigurasyon ciktiya BASILIR — konfigini kaydetmeyen eval kiyaslanamaz sayi uretir.
+
+    urun: [URUN] yolunu (isabet_at_k) kos. None = OTOMATIK, yani `hyde_cache` ne ise o.
+        Iki sebep, ikisi de A13'un kendi mantigi:
+          1) TEKRARLANABILIRLIK. isabet_at_k her k icin AYRI bir getir() cagiriyor.
+             hyde_cache=False iken bu UC AYRI HyDE cekilisi demek: isabet@5, isabet@10
+             ve yukaridaki recall@k farkli pusulalardan gelir, isabet@5 <= isabet@10
+             sarti bozulabilir ve hepsi tek bir olcum gibi basilir. siralar()'in
+             asagida uyardigi hatanin tek rapor icindeki hali.
+          2) MALIYET. Urun yolu sorgu basina 2 getir() daha ekliyor (23 -> 69): her biri
+             e5 encode + tam corpus matmul. Sayilari kullanmayan cagiran (deney_a11
+             gibi) urun=False verip 3x bedeli odemesin.
     """
     en_buyuk = max(k_listesi)
     toplam_recall = {k: 0.0 for k in k_listesi}
@@ -232,14 +245,22 @@ def degerlendir(altin_set=ALTIN_SET, k_listesi=(5, 10, 50), hyde_cache=True,
         print(f"  recall@{k:>2} = {toplam_recall[k] / n:.3f}")
     print(f"  MRR      = {toplam_mrr / n:.3f}")
 
-    print()
-    print("  [URUN] getir(k=k) cagrilarindan — kullanicinin gordugu liste")
-    urun = isabet_at_k(altin_set, k_listesi=tuple(k for k in k_listesi if k <= 10),
-                       hyde_cache=hyde_cache, kota=kota, tekillestir=tekillestir,
-                       franchise=franchise, **getir_ayar)
+    if urun is None:
+        urun = hyde_cache                    # gerekce yukarida (docstring, urun)
+    urun_olcu = {}
+    if urun:
+        print()
+        print("  [URUN] getir(k=k) cagrilarindan — kullanicinin gordugu liste")
+        urun_olcu = isabet_at_k(altin_set, k_listesi=tuple(k for k in k_listesi if k <= 10),
+                                hyde_cache=hyde_cache, kota=kota, tekillestir=tekillestir,
+                                franchise=franchise, **getir_ayar)
+    elif not hyde_cache:
+        print()
+        print("  [URUN] ATLANDI: hyde_cache=False — her k AYRI cekilis olurdu, uc farkli"
+              " pusula tek olcum gibi basilirdi. Urun yolu icin cache'li kos.")
 
     return {**{f"recall@{k}": toplam_recall[k] / n for k in k_listesi},
-            "MRR": toplam_mrr / n, **urun}
+            "MRR": toplam_mrr / n, **urun_olcu}
 
 
 # ---------------------------------------------------------------------------
@@ -367,6 +388,8 @@ if __name__ == "__main__":
     p.add_argument("--tekilsiz", action="store_true", help="seri tekillestirmeyi kapat")
     p.add_argument("--no-cache", action="store_true",
                    help="sahte belgeyi her kosuda yeniden uret -> GURULTU TABANI olcumu icin")
+    p.add_argument("--urunsuz", action="store_true",
+                   help="[URUN] yolunu (isabet@k) atla — eval 3x hizlanir, sadece havuz olculur")
     # varsayilan None: verilmezse config.py'nin kendi degeri (su an "mal") EZILMEZ.
     # Onceki hali default="anilist" idi -> her eval.py cagrisi sessizce config'i eziyordu,
     # A7'nin sonucunu (mal secili) fiilen gecersiz kiliyordu. Fazin 1 numarali temasinin
@@ -378,7 +401,7 @@ if __name__ == "__main__":
     a = p.parse_args()
 
     # Tanisal kosu icin config'i yerinde degistiriyoruz (CLI'a ozel, kutuphane kodu boyle yapmaz).
-    # Havuzu buyutmek bi-encoder'a ~bedava: 7807 skor zaten hesaplaniyor, sadece kesme noktasi kayiyor.
+    # Havuzu buyutmek bi-encoder'a ~bedava: 12104 skor zaten hesaplaniyor, sadece kesme noktasi kayiyor.
     # Reranker icin AYNI SEY DEGIL — cross-encoder cift basina bir forward pass, maliyet dogrusal.
     k_listesi = (5, 10, 50) if a.aday <= 50 else (5, 10, 50, a.aday)
     config.ADAY = a.aday
@@ -389,4 +412,4 @@ if __name__ == "__main__":
     degerlendir(k_listesi=k_listesi, rerank=a.rerank, medya=a.medya,
                 hyde_n=a.hyde_n, cipa=a.cipa, hyde_cache=not a.no_cache,
                 kota=not a.kotasiz, tekillestir=not a.tekilsiz,
-                franchise=not a.kati)
+                franchise=not a.kati, urun=False if a.urunsuz else None)

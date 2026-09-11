@@ -33,7 +33,7 @@ MAL_SYNOPSIS_JSONL = VERI / "mal_synopsis.jsonl"   # A7 deneyi: anime aciklamasi
 ANIME_KAYNAK = "mal"
 
 # --- demo modu ---
-# HF Spaces'te tam corpus YOK (sinopsis metni ucuncu tarafa ait) ve 2 vCPU'da 7807 dokumani
+# HF Spaces'te tam corpus YOK (sinopsis metni ucuncu tarafa ait) ve 2 vCPU'da 12104 dokumani
 # her acilista gommek dakikalar surer. Demo paketi hazir vektor + telifsiz meta tasiyor.
 # Elle acmak: DEMO_MODU=1. Otomatik: demo/ varsa ve tam corpus yoksa.
 DEMO_DIZIN = KOK / "demo"
@@ -109,7 +109,8 @@ FIYAT_GIRDI_1M = 0.10
 FIYAT_CIKTI_1M = 0.40
 
 # --- link sablonlari (id'den URL) ---
-# anime idMal, film tmdb id, kitap google books id kullanir (veri.link() secer)
+# anime idMal, film TMDB id, kitap Open Library ESER anahtari ("OL262454W") kullanir
+# (veri.link() secer). Kitap kaynagi 2026-09-10'da Google Books'tan tasindi.
 LINK = {
     "anime": "https://myanimelist.net/anime/{id}",
     "film": "https://www.themoviedb.org/movie/{id}",
@@ -120,10 +121,14 @@ LINK = {
 }
 
 # --- ajan (Faz 5) ---
-# Ajanin okudugu ozetin ust siniri. Arama TAM METIN uzerinde yapiliyor; bu kirpma
-# yalnizca LLM'in baglamina gireni etkiler, retrieval kalitesini DEGISTIRMEZ.
-# 512: corpus'un %47'si kirpilir, %53'u dokunulmadan gecer. 5 sonuc x 10 tur
-# ~ 6.4k token — rahat butce. Alaka karari icin sinopsisin ONCULU yeterli.
+# Ajanin okudugu SINOPSISIN ust siniri. Kirpilan sey veri.ozet(), veri.belge() DEGIL:
+# belge() "baslik. turler. ozet" uretiyor ve basligi ajanin ciktisina zaten _metin
+# yaziyor. Arama TAM METIN uzerinde yapiliyor; bu kirpma yalnizca LLM'in baglamina
+# gireni etkiler, retrieval kalitesini DEGISTIRMEZ.
+# 512: sinopsislerin %49.8'i kirpilir, %50.2'si dokunulmadan gecer (12104 kayit,
+# ortalama sinopsis 606 krk; olculdu 2026-09-11). Onceki yorum bu iki sayiyi TERS
+# yaziyordu ve belge() uzerinden hesaplanmisti.
+# 5 sonuc x 10 tur ~ 6.4k token — rahat butce. Alaka karari icin sinopsisin ONCULU yeterli.
 AJAN_OZET_KRK = 512
 
 # --- deney (A12, 2026-09-10): tur alaninin agirligi ---
