@@ -25,3 +25,10 @@ profil.txt
 
 # makineye ozel: venv yolu baska bilgisayarda tutmaz
 .vscode/
+
+# Kod haritasi araclari — hepsi tek komutla yeniden uretilir, repoda yeri yok.
+#   pyreverse -o svg -p capraz --colorized --output-directory uml *.py
+#   emerge -c kod-haritasi.yaml        (networkx<3.6 sart, yaml'in icinde yaziyor)
+uml/
+kod-haritasi-cikti/
+kod-haritasi.yaml
