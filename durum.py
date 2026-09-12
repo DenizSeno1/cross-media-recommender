@@ -8,7 +8,7 @@ NEDEN BUDAMA (iki sebep, ve "baglam doluyor" bunlardan BIRI DEGIL):
      1. turun gozlemi DORT KEZ faturalandi. Budamasiz toplam maliyet tur sayisinin
      KARESI gibi buyuyor, tur sayisi gibi degil.
 
-     OLCULDU (deney_gun3.py, ajandan bagimsiz — ayni gecmis iki kez derleniyor):
+     OLCULDU (deneyler/deney_gun3.py, ajandan bagimsiz — ayni gecmis iki kez derleniyor):
          tur sayisi iki katina cikinca kumulatif maliyet
              budamasiz 3.8x  (kare ~4.0x)
              budamali  2.55x (dogrusal ~2.0x)

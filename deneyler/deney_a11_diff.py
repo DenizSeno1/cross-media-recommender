@@ -10,9 +10,13 @@ vardi ve kota/tekillestir'i elle sabitliyordu; eval.siralar ise getir()'in
 varsayilanlarina guveniyordu. Iki kopya, ayni soruyu iki farkli hatta olcuyordu —
 config.SERI_TEKILLESTIR degistigi gun ikisi sessizce ayrisirdi. Olcu tek yerde durur.
 
-Kullanim:  python deney_a11_diff.py [cipa]     (varsayilan 0.25)
+Kullanim:  python deneyler/deney_a11_diff.py [cipa]     (varsayilan 0.25)
 """
 import sys
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # deneyler/ -> repo koku
 
 import eval as ev
 

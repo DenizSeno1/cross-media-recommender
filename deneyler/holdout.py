@@ -23,10 +23,14 @@ TASARIM KARARLARI (Deniz, 2026-09-05) — savunulmasi gereken kisim bu:
  5) Birden fazla tekrar, farkli gizlenen kumeleriyle (tohum sabit). Tek cekilis
     varyansi olcuyu gurultuye baglar — 09-05'in dersi.
 
-Kullanim:  python holdout.py [gizlenen_sayisi] [tekrar]
+Kullanim:  python deneyler/holdout.py [gizlenen_sayisi] [tekrar]
 """
 import random
 import sys
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # deneyler/ -> repo koku
 
 import config
 import profil

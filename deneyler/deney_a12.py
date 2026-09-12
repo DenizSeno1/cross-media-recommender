@@ -6,9 +6,9 @@ tartismasi uzadi — ama o alanin ETKISI hic olculmemisti. Once agirligi olc, so
 nasil doldurulacagini tartis.
 
 Kosum (iki AYRI surec, cunku config bayragi import aninda okunuyor):
-    BELGE_TURLER=1 python deney_a12.py       -> data/a12_turler_acik.json
-    BELGE_TURLER=0 python deney_a12.py       -> data/a12_turler_kapali.json
-    python deney_a12.py --karsilastir        -> isaret testi + havuz@k farki
+    BELGE_TURLER=1 python deneyler/deney_a12.py       -> data/a12_turler_acik.json
+    BELGE_TURLER=0 python deneyler/deney_a12.py       -> data/a12_turler_kapali.json
+    python deneyler/deney_a12.py --karsilastir        -> isaret testi + havuz@k farki
 
 hyde_cache=True (eval varsayilani): iki varyant AYNI sahte belgelerle kosar,
 tek degisken corpus metni olur.
@@ -16,6 +16,11 @@ tek degisken corpus metni olur.
 
 import argparse
 import json
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # deneyler/ -> repo koku
 
 import config
 import eval as ev

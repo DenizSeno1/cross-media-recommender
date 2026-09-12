@@ -11,7 +11,7 @@ provenance.json konuyor (model, kayit sayisi, kaynak belge hash'i, uretim tarihi
 Guard'in amaci "vektorler hangi metinden uretildi" sorusunu cevaplamakti; bu dosya
 ayni soruyu daha acik cevapliyor.
 
-Kosum:  python demo_hazirla.py
+Kosum:  python scripts/demo_hazirla.py
 """
 
 import hashlib
@@ -20,6 +20,11 @@ from datetime import date
 
 import numpy as np
 from sentence_transformers import SentenceTransformer
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # scripts/ -> repo koku
 
 import config
 import retrieval

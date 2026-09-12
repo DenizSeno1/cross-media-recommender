@@ -5,8 +5,13 @@ urun=False: asagidaki ozet tablosu yalnizca recall/MRR basiyor, [URUN] yolu (isa
 her sorguya 2 getir() daha ekliyordu -> 10 konfig icin 230 yerine 690 cagri, hepsi cope.
 LLM cagrisi YOK — sahte belgeler cache/hyde/ icinde donmus (23 sorgu x n=1,5).
 
-Kullanim:  python deney_a11.py
+Kullanim:  python deneyler/deney_a11.py
 """
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # deneyler/ -> repo koku
+
 import eval as ev
 
 # Deniz'in kor tahmini (2026-09-05, kosmadan once): cipa 0'a YAKIN bir yerde tepe
