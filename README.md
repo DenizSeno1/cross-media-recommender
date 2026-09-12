@@ -11,7 +11,7 @@ hattı, chunking denemeleri, profil çıkarımı ve eval'in tamamı elle yazıld
 
 ## Ekran
 
-![Demo](demo.gif)
+![Demo](gorseller/demo.gif)
 
 *Tek sorgu, kesintisiz: "ölüm ve yas üzerine sakin fantastik yolculuk" → HyDE → retrieval →
 sonuç. İlk beşte **anime, film ve kitap bir arada**; altında getirilen metne dayalı gerekçe ve
@@ -21,13 +21,13 @@ Rerank kapalı (CPU'da 1.5-3 dk/sorgu; kazancı ve neden kapalı olduğu aşağ�
 <details>
 <summary>Duran kareler</summary>
 
-![Profil yüklü + rerank açık](profil_rerank.png)
+![Profil yüklü + rerank açık](gorseller/profil_rerank.png)
 
 *Tam hat: MAL listesi yüklü (10 zevk adası kuruldu, 617 kayıt elendi), rerank açık.
 Tek sorgu — "ölüm ve yas üzerine sakin fantastik yolculuk" — sonuçta anime, kitap ve film
 bir arada. Altta çağrı/token/maliyet sayacı.*
 
-![Kişiselleştirme ve rerank kapalı](capraz_medya.png)
+![Kişiselleştirme ve rerank kapalı](gorseller/capraz_medya.png)
 
 *Aynı sorgu, çıplak hat: profil yok, rerank yok. Kişiselleştirmesiz herkes aynı sonucu alır.*
 

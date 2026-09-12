@@ -38,7 +38,7 @@ sekme çubuğu, yer imleri, masaüstü görünmesin. 12-15 FPS yeter.
 
 - Baştaki boş kareleri ve sondaki fazlalığı at.
 - Bekleme süresi uzun geldiyse **hızlandırma**, kes — sahte hız portföyde yalan olur.
-- Dosya adı: `demo.gif`, repo köküne koy. 5 MB'ı geçerse ScreenToGif'ten renk sayısını
+- Dosya adı: `demo.gif`, `gorseller/` altına koy. 5 MB'ı geçerse ScreenToGif'ten renk sayısını
   düşür ya da boyutu %75'e indir.
 
 ## Çekmeyeceğin şeyler
