@@ -1,6 +1,8 @@
 """A11 — HyDE cipasi: pusula ortalamasina ham sorgu vektorunu katmanin etkisi.
 
 Tek surecte kosar: model ve index bir kez yuklenir, 10 konfig ayni corpus'ta olculur.
+urun=False: asagidaki ozet tablosu yalnizca recall/MRR basiyor, [URUN] yolu (isabet@k)
+her sorguya 2 getir() daha ekliyordu -> 10 konfig icin 230 yerine 690 cagri, hepsi cope.
 LLM cagrisi YOK — sahte belgeler cache/hyde/ icinde donmus (23 sorgu x n=1,5).
 
 Kullanim:  python deney_a11.py
@@ -29,7 +31,7 @@ if __name__ == "__main__":
     satirlar = []
     for n, c in IZGARA:
         print(f"\n{'='*70}\n  n={n}  cipa={c}\n{'='*70}")
-        s = ev.degerlendir(hyde_n=n, cipa=c, hyde_cache=True)
+        s = ev.degerlendir(hyde_n=n, cipa=c, hyde_cache=True, urun=False)
         satirlar.append((n, c, s))
 
     print(f"\n\n{'='*70}\n  A11 OZET   (gurultu tabani +-{GURULTU}, 23 sorgu)\n{'='*70}")

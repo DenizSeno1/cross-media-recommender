@@ -39,7 +39,7 @@ def aci(a, b):
 def izle(sorgu, kisisel=True, k=5, agirlik=None):
     model, V, corpus, belgeler = retrieval._hazirla()
 
-    baslik(0, "CORPUS", "aranan sey: dondurulmus 7807 kayit, uc medya AYNI uzayda")
+    baslik(0, "CORPUS", "aranan sey: dondurulmus 12104 kayit, uc medya AYNI uzayda")
     from collections import Counter
     print(f"    {Counter(m['media'] for m in corpus)}  toplam {len(corpus)}")
     print(f"    index: V{V.shape}, satirlar birim vektor (norm={np.linalg.norm(V[0]):.3f})")
@@ -72,7 +72,7 @@ def izle(sorgu, kisisel=True, k=5, agirlik=None):
     else:
         print("    kisisellestirme KAPALI (--profilsiz)")
 
-    baslik(3, "BI-ENCODER — 7807 SKOR", "tek matris carpimi; bu yuzden FAISS reddedildi, "
+    baslik(3, "BI-ENCODER — 12104 SKOR", "tek matris carpimi; bu yuzden FAISS reddedildi, "
                                         "brute force zaten milisaniye")
     skorlar = V @ q
     ilk = np.argsort(-skorlar)[:5]

@@ -23,7 +23,7 @@ st.set_page_config(page_title="Capraz-Medya Onerici", page_icon="🎬", layout="
 
 @st.cache_resource(show_spinner="Model + index isitiliyor (ilk acilista birkac dk)...")
 def isit():
-    """Agir init (e5 + 7807 index) bir kez; Streamlit her etkilesimde script'i
+    """Agir init (e5 + 12104 index) bir kez; Streamlit her etkilesimde script'i
     bastan kosar, cache_resource ile model/index yeniden yuklenmez."""
     retrieval._hazirla()
     return True
@@ -36,7 +36,8 @@ st.caption("Anime · film · kitap — icerik-tabanli HyDE retrieval. Gozlem ara
 
 if config.DEMO:
     st.info(
-        "**Demo modu.** Vektorler onceden hesaplanmis (7807 kayit, tam corpus'tan) ve "
+        "**Demo modu.** Vektorler onceden hesaplanmis (7807 kayit; paket 2026-09-06'da, "
+        "kitap kaynagi Open Library'ye tasinmadan once uretildi) ve "
         "hazir yuklendi; sinopsis METNI bu pakette yok — ucuncu tarafa ait. Sonuclar "
         "gercek sistemle ayni, cunku vektorler ayni. Rerank kapali (CPU'da dakikalar "
         "suruyor), yani kalite olculen tavanin altinda. Kaynak ve olcumler README'de.",
