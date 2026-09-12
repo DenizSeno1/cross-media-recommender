@@ -29,6 +29,7 @@ from pydantic import BaseModel
 
 import araclar
 import durum
+import kapi
 import llm
 
 log = logging.getLogger("dongu")
@@ -182,7 +183,12 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
     Her turun kaydi (Gun 9-10 bunlari olcecek):
         {"no": 1, "dusunce": ..., "arac": "ara", "args": {...},
          "gozlem_krk": 1840, "sure_sn": 2.3,
-         "llm_cagri": 2, "girdi_tok": 3120, "cikti_tok": 88}
+         "llm_cagri": 2, "girdi_tok": 3120, "cikti_tok": 88,
+         "kapi_yeterli": False, "kapi_gerekce": "..."}
+
+    kapi_* alanlari YALNIZCA normal arama turlarinda var (hata/tekrar yolunda
+    yargilanacak liste yok). Kapinin kararini bu dongu KULLANMIYOR, sadece
+    kaydediyor — gerekcesi kapi.py'nin basinda.
 
     sure_sn ve token alanlari TURUN TAMAMINI kapsar: modele sorma (_llm_turu'nun
     onarim denemeleri dahil) + arac calistirma (aracin icindeki HyDE cagrisi dahil).
@@ -255,6 +261,23 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
         iz_satiri = (durum.iz(tur_no, tur.arac, tur.args, yapisal)
                      if yapisal is not None else sonuc)
         kayit["iz_krk"] = len(iz_satiri)        # budamanin kazandirdigi yer: gozlem_krk - iz_krk
+
+        # KAPI (Gun 5-6): getirilen liste sorguyu karsiliyor mu?
+        #
+        # SADECE KAYDEDILIYOR — dongulyu YONETMIYOR, baglama DA GIRMIYOR. Bilerek.
+        # Gun 0'da tam bu is icin iki yapisal sinyal olculdu ve gurultuden ayirt
+        # edilemedi (AUC 0.500 / 0.389); kapi fikri o olcumle dustu. Olculmemis bir
+        # yargiyi akisa sokmak — hatta gerekceyi gozleme eklemek bile — ayni hatayi
+        # tekrarlamak olurdu: gerekce baglama girdigi anda modelin hamlesini
+        # etkiler ve kapi olculmeden karar vermeye baslar.
+        # Once kayit, Gun 9-10'da olcum, gecerse terfi.
+        #
+        # Hata/tekrar yolunda yapisal kayit yok: yargilanacak liste de yok.
+        if yapisal is not None:
+            karar = kapi.yargila(sorgu, yapisal)
+            kayit["kapi_yeterli"] = karar["yeterli"]
+            kayit["kapi_gerekce"] = karar["gerekce"]
+
         _olcum_yaz(kayit, basla, sayac0)
 
         d.tur_ekle(tur.model_dump(), sonuc, iz_satiri)
@@ -288,5 +311,9 @@ if __name__ == "__main__":
               f"{t['girdi_tok']}+{t['cikti_tok']} tok")
         print(f"     baglam: {t['gonderilen_tok']} tok "
               f"(budamasiz {t['budamasiz_tok']})")
+        if "kapi_yeterli" in t:
+            # Kapi akisi yonetmiyor; burada SADECE gorunur olsun diye basiliyor.
+            print(f"     kapi: {'yeterli' if t['kapi_yeterli'] else 'YETERSIZ'}"
+                  f" — {t['kapi_gerekce']}  [kayit; akisi etkilemiyor]")
     print(f"\nCEVAP:\n{sonuc['cevap']}")
     print(f"\n{llm.sayac.ozet()}")

@@ -9,3 +9,8 @@ scikit-learn==1.9.0
 streamlit==1.63.0
 requests==2.34.2
 python-dotenv==1.2.2
+
+# dongu.py'nin Tur modeli icin. SURUM SABITLENMEDI: bu makinedeki hicbir
+# yorumlayicida kurulu degil, gelistirme ortamindaki surumu okuyamadim.
+# Diger satirlar gibi sabitle: pip show pydantic -> pydantic==X.Y.Z
+pydantic
