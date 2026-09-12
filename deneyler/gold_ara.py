@@ -14,13 +14,17 @@ sorguyu kaydin kendi kelimeleriyle yazma egilimine girersin ve olcu kolaylasir.
 Retrieval'in isini kendin yapmis olursun; sayi yukselir, urun iyilesmez.
 
 Kullanim:
-    python gold_ara.py monster              # tum medyalarda basliktan ara
-    python gold_ara.py --medya kitap crow    # sadece kitap
-    python gold_ara.py --sayim               # corpus dagilimi
+    python deneyler/gold_ara.py monster              # tum medyalarda basliktan ara
+    python deneyler/gold_ara.py --medya kitap crow    # sadece kitap
+    python deneyler/gold_ara.py --sayim               # corpus dagilimi
 """
 
 import collections
 import sys
+
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # deneyler/ -> repo koku
 
 import veri
 

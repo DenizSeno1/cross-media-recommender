@@ -91,7 +91,7 @@ DEMO_MODU=1 streamlit run app.py
 ```
 
 `data/` boşsa demo modu **kendiliğinden** açılır. Paketi yeniden üretmek için (tam corpus
-gerekir): `python demo_hazirla.py`
+gerekir): `python scripts/demo_hazirla.py`
 
 > **Provenance neden önemli:** `_index()` normalde cache dosya adına belgelerin içerik
 > hash'ini yazıyor — metin değişince eski vektörler sessizce okunamasın diye. Demo modunda
@@ -116,10 +116,10 @@ python eval.py
 ```
 
 ```bash
-python holdout.py
+python deneyler/holdout.py
 ```
 
-`eval.py` retrieval'ı ölçer (recall@k + MRR, 23 sorguluk altın set); `holdout.py` öneri
+`eval.py` retrieval'ı ölçer (recall@k + MRR, 23 sorguluk altın set); `deneyler/holdout.py` öneri
 kalitesini ölçer (tut-bırak, rastgele tabanlı).
 
 ---
@@ -146,10 +146,11 @@ sorgu YOKSA ──▶ zevk adaları ──▶ adalar arası round-robin ──�
 | `profil.py` | XML → zevk profili: çekirdek, K-means adaları, harman, franchise maskesi, kota |
 | `oneri.py` | getirilen metne dayalı gerekçe üretimi (iki ayrı prompt: sorgulu / sorgusuz) |
 | `eval.py` | altın set, `recall@k`, `MRR`, işaret testi, sorgu-bazlı karşılaştırma |
-| `holdout.py` | "iyi öneri" ölçütü — tut-bırak |
+| `deneyler/holdout.py` | "iyi öneri" ölçütü — tut-bırak |
 | `app.py` | Streamlit arayüzü |
 | `scripts/cek_*.py` | corpus çekme (bir kez koşulur, sonuç dondurulur) |
-| `deney_a11*.py` | HyDE çıpası deneyi — kanıtı zayıf çıktı, `HYDE_CIPA=0.0` kaldı |
+| `deneyler/deney_a11*.py` | HyDE çıpası deneyi — kanıtı zayıf çıktı, `HYDE_CIPA=0.0` kaldı |
+| `deneyler/` | ölçüm ve deney betikleri — hattı ölçer, hattı değiştirmez; kökten `python deneyler/<ad>.py` ile koşar |
 
 **Modeller:** `intfloat/multilingual-e5-large` (bi-encoder), `BAAI/bge-reranker-v2-m3`
 (cross-encoder, varsayılan kapalı), Gemini flash-lite (HyDE sahte belgesi + gerekçe metni).
@@ -218,7 +219,7 @@ gizlenen kümeleriyle, tohum sabit.)
 
 > **Ad çakışması, dikkat:** aşağıdaki `isabet@k` yukarıdakiyle **aynı şey değil.**
 > Yukarıdaki (`eval.py`) "gold ürünün k'lık listesinde mi" diye soruyor; aşağıdaki
-> (`holdout.py`) "profilden gizlediğim franchise'ı sistem geri buluyor mu" diye soruyor.
+> (`deneyler/holdout.py`) "profilden gizlediğim franchise'ı sistem geri buluyor mu" diye soruyor.
 > Farklı ölçü, farklı taban, farklı soru.
 
 | k | isabet@k (tut-bırak) | rastgele | kat |

@@ -20,6 +20,11 @@ import random
 import time
 from collections import Counter
 
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # deneyler/ -> repo koku
+
 import config
 import eval as ev
 import retrieval

@@ -122,7 +122,7 @@ sessiz hatasi '14 tur dondu ama kimse fark etmedi'"*.
 
 ---
 
-## 3. Ölçüm hizası — `eval.py`, `deney_a12.py`
+## 3. Ölçüm hizası — `eval.py`, `deneyler/deney_a12.py`
 
 ### 3a. `--no-cache` üç ayrı pusulayı tek ölçüm gibi basıyordu
 
@@ -142,7 +142,7 @@ cekilisiyle kosar ve isaret testi LLM gurultusunu degisiklige yazar."*
 
 `degerlendir` sorgu başına 1 değil 3 `getir()` çağırmaya başlamıştı (23 → 69). Her fazladan
 çağrı e5 ile sahte belgeyi yeniden gömüyor ve 12104×1024 matmul'ü tekrarlıyor.
-`deney_a11.py` 10 satırlık bir ızgarada `degerlendir` çağırıyor — 230 çağrı 690 olmuş,
+`deneyler/deney_a11.py` 10 satırlık bir ızgarada `degerlendir` çağırıyor — 230 çağrı 690 olmuş,
 üstelik özet tablosu yalnızca recall/MRR bastığı için **fazladan 460 çağrının tamamı
 çöpe** gidiyordu.
 
@@ -164,7 +164,7 @@ bileşimin en çok ayrıştığı eksen.
 
 ---
 
-## 4. Çöken kenar durumlar — `sinyaller.py`, `deney_gun0.py`
+## 4. Çöken kenar durumlar — `sinyaller.py`, `deneyler/deney_gun0.py`
 
 `getir` **k'dan az** kayıt dönebiliyor (aday havuzu tekilleştirmeden sonra tükenirse) ve
 `araclar.ara` `k`'yi modele bırakıyor. Tek sonuçta `benzerlik` `n*(n-1) = 0`'a bölüp
@@ -217,7 +217,7 @@ yakalandığını anlatıyor.
 
 > Güncellendi: `config.py`, `eval.py` (modül başlığı, gold ad-alanı notu, kitap gold
 > kararı), `sinyaller.py` (`V: (12104, 1024)`), `profil.py` (3 yer), `app.py`, `izle.py`,
-> `demo_hazirla.py`, `README.md`.
+> `scripts/demo_hazirla.py`, `README.md`.
 >
 > **Demo paketine ait 7807 referansları doğru** (paket 2026-09-06'da, taşınmadan önceki
 > corpus'tan üretildi, `provenance.json` hash `e5f0dd87fb`) — bunlar değiştirilmedi,
