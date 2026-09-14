@@ -151,6 +151,7 @@ sorgu YOKSA ──▶ zevk adaları ──▶ adalar arası round-robin ──�
 | `scripts/cek_*.py` | corpus çekme (bir kez koşulur, sonuç dondurulur) |
 | `deneyler/deney_a11*.py` | HyDE çıpası deneyi — kanıtı zayıf çıktı, `HYDE_CIPA=0.0` kaldı |
 | `deneyler/` | ölçüm ve deney betikleri — hattı ölçer, hattı değiştirmez; kökten `python deneyler/<ad>.py` ile koşar |
+| `testler/` | ağsız, modelsiz davranış testleri; kökten `python testler/<ad>.py`, çıkış kodu 0 = geçti |
 
 **Modeller:** `intfloat/multilingual-e5-large` (bi-encoder), `BAAI/bge-reranker-v2-m3`
 (cross-encoder, varsayılan kapalı), Gemini flash-lite (HyDE sahte belgesi + gerekçe metni).
