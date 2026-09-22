@@ -115,8 +115,10 @@ HYDE_CIPA = 0.0        # A11: pusula ortalamasina HAM SORGU vektorunu de kat (Hy
                        # yaptigi, bizim atladigimiz adim). 0.0 = cipa yok (09-04'e kadarki hal),
                        # 1.0 = sadece ham sorgu (recall@5 = 0, Gun 10-11). Makale esit agirlikli
                        # ortalama aliyor -> N sahte belge icin cipa = 1/(N+1).
-RERANK_AKTIF = False   # +0.18 recall@5 AMA ~1.5-3 dk/sorgu CPU -> varsayilan KAPALI.
-                       # GPU / kucuk reranker / hosted API olursa ac.
+RERANK_AKTIF = True    # 2026-09-22 KARARI: urun = ajansiz + rerank. Olculdu (60 gold, e5-large,
+                       # donmus pusula): 23/60 -> 33/60, 11/1, p=0.006; GPU'da medyan ~20 sn/sorgu.
+                       # Eski "CPU'da dakikalar" notu GPU'suz makinenin olcumuydu.
+                       # DIKKAT: retrieval.getir'in varsayilani bu degere IMPORT ANINDA baglanir.
 
 # --- LLM (HyDE sahte belge + oneri aciklamasi icin) ---
 # Gemini (Google Generative Language API). NVIDIA NIM free tier denendi ve GERI ALINDI
