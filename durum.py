@@ -58,15 +58,22 @@ def iz(tur_no: int, arac: str, args: dict, sonuclar: list[dict]) -> str:
                       taramasini engeller (tekrar freni arac cagrisini engeller,
                       bu ayri bir koruma)
 
+    BASLIKLARIN YANINDA KIMLIK DE VAR (2026-09-18). Sebep olculdu: cevap turunda
+    model sectigi kayitlari id ile bildiriyor (dongu.Tur.secilen), ama pencere=1'de
+    eski turlarin gozlemi ize iniyor ve iz yalnizca baslik basarsa model o turlardan
+    SECEMEZ — id'yi bilmiyor. 17 Eylul kosusunda ajan cevabinin 5 eserinden ikisi
+    1. turdan geliyordu; id'siz iz o ikisini secilemez yapardi. Bedeli tur basina
+    ~40 karakter.
+
     Ornek cikti:
         tur 1: ara(sorgu="psikolojik gerilim ahlaki ikilem", medya=hepsi, k=5)
-               -> 5 sonuc · tepe 0.79 · Heretic, ID: INVADED, Phi Brain, ...
+               -> 5 sonuc · tepe 0.79 · [812] Heretic, [1873] ID: INVADED, ...
     """
     arg_metni = ", ".join(f"{k}={v!r}" for k, v in args.items())
     if not sonuclar:
         return f"tur {tur_no}: {arac}({arg_metni}) -> SONUC YOK"
     tepe = max(s.get("_skor", 0) for s in sonuclar)
-    basliklar = ", ".join(s.get("baslik", "?") for s in sonuclar)
+    basliklar = ", ".join(f"[{s['_idx']}] {s.get('baslik', '?')}" for s in sonuclar)
     return (f"tur {tur_no}: {arac}({arg_metni})\n"
             f"       -> {len(sonuclar)} sonuc · tepe {tepe:.2f} · {basliklar}")
 

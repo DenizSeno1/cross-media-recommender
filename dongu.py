@@ -47,7 +47,7 @@ Elinde su arac(lar) var:
 HER TURDA SADECE su JSON'u dondur, baska hicbir sey yazma:
 {{"dusunce": "<neden bu hamle>", "arac": "<ad>", "args": {{...}}}}
 Is bittiyse:
-{{"dusunce": "<neden yeterli>", "cevap": "<kullaniciya nihai metin>"}}
+{{"dusunce": "<neden yeterli>", "cevap": "<kullaniciya nihai metin>", "secilen": [12, 7, ...]}}
 
 KURALLAR:
 - "dusunce" her turda ZORUNLU. Neden o hamleyi yaptigini tek cumleyle yaz.
@@ -56,6 +56,16 @@ KURALLAR:
   medya kisitini gevset.
 - Elindeki sonuclar yeterliyse VAKIT KAYBETME, "cevap" dondur.
 - Cevabinda SADECE aracin getirdigi yapitlardan bahset. Baslik uydurma.
+- "secilen": cevabinda bahsettigin HER eserin kimligi. Kimlik, sonuc listesinde
+  basligin solunda koseli parantez icinde duran sayidir ([1873] gibi). Sadece sana
+  GOSTERILEN sayilari yaz, sayi uydurma. Sirasi cevaptaki sirayla ayni olsun.
+- SADECE SON ARAMAYA BAGLI KALMA: onceki turlarin sonuclari da ozet satirlarinda
+  kimlikleriyle duruyor. Bir turda tek bir iyi sonuc geldiyse o kayip degildir,
+  onu da secebilirsin.
+- BES TANE sec: gordugun butun kayitlar arasindan EN IYI BESI, en iyiden basla.
+  Elinde bes ayri kayit yoksa oldugu kadarini ver. Kullanici her zaman bes oneri
+  goruyor; ucunu verip birakirsan digerlerini hic gormemis olur.
+- Kimlikler ICERIDEDIR: "cevap" metnine id YAZMA, kullanici onlari gormemeli.
 
 Kullanicinin istegi: {sorgu}"""
 
@@ -149,6 +159,10 @@ class Tur(BaseModel):
         arac    : str | None   — cagrilacak arac adi ("ara")
         args    : dict         — o aracin argumanlari; arac yoksa bos
         cevap   : str | None   — is bitti, nihai metin bu
+        secilen : list[int]    — cevapta bahsedilen kayitlarin kimlikleri (_idx).
+                                 YALNIZCA 'cevap' turunda dolu; arama turunda bos.
+                                 Modelin "hangi kayitlari sectim" beyani — urun de
+                                 olcum de ayni listeyi gorsun diye (D karari, 09-18).
 
     'arac' ve 'cevap' birbirinin alternatifi: biri doluysa digeri bos.
     """
@@ -156,6 +170,7 @@ class Tur(BaseModel):
     arac: str | None = None
     args: dict = {}
     cevap: str | None = None
+    secilen: list[int] = []
 
 
 def _olcum_yaz(kayit: dict, basla: float, sayac0: tuple) -> None:
@@ -176,9 +191,27 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
     girdi : sorgu (str) — kullanicinin dogal dildeki istegi
     cikti : {
         "cevap": str | None,        # nihai metin (hard cap'e dayandiysa None olabilir)
+        "oneriler": list[dict],     # AJANIN LISTESI — _getir_kirp bicimli kayitlar
         "turlar": list[dict],       # her turun kaydi — asagida
         "durma_sebebi": str,        # "cevap" | "hard_cap"
     }
+
+    'oneriler' NEDEN VAR (D karari, 2026-09-18): ajan serbest metin donduruyordu ve
+    cevabini HANGI kayitlara dayandirdigi hicbir yerde kayitli degildi. Olculdu
+    (09-17, tek kosu): ajan 2. turun listesinden ucunu alip ikisini atti, kalan ikisini
+    1. turdan cekti. Yani ne "son aramanin listesi" ne "turlarin birlesimi" ajanin
+    verdigi listeydi. Model artik sectiklerini id olarak bildiriyor; urun de olcum de
+    AYNI listeyi goruyor.
+
+    Iki yol:
+      durma_sebebi="cevap"    -> modelin 'secilen' ile bildirdigi kayitlar, onun sirasiyla.
+                                 Gosterilmemis bir id yazarsa o id DUSER (sessizce degil:
+                                 tur kaydinda 'uydurma_id' sayisi tutulur).
+      durma_sebebi="hard_cap" -> model hic secim yapmadi. O ana kadar getirilen butun
+                                 kayitlar, ILK GORULME sirasinda, en fazla 5 tane.
+                                 Skora gore siralanMIYOR: skorlar farkli SORGULARIN
+                                 kosinusleri ve Gun 0'da olculdu ki bu sayi kaliteyi
+                                 degil sorgu zorlugunu tasiyor (sorgu-ici AUC 0.500).
 
     Her turun kaydi (Gun 9-10 bunlari olcecek):
         {"no": 1, "dusunce": ..., "arac": "ara", "args": {...},
@@ -216,6 +249,8 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
         sorgu=sorgu))
     turlar = []
     gorulen_cagri = set()          # (arac, args) — ayni hamle ikinci kez CALISTIRILMAZ
+    getirilen = {}                 # _idx -> kayit; hard cap yolunun elindekiler
+    yapisal = None                 # son aramanin yapisal kayitlari (ilk turda arama yok)
     for tur_no in range(1, hard_cap + 1):
         # Olcum TURUN BASINDA basliyor: modelin kendi cagrisi (ve _llm_turu'nun
         # onarim denemeleri) turun hem gecikmesinin hem faturasinin buyuk kismi.
@@ -237,7 +272,22 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
         turlar.append(kayit)
         if tur.cevap:
             _olcum_yaz(kayit, basla, sayac0)
-            return {"cevap": tur.cevap, "turlar": turlar, "durma_sebebi": "cevap"}
+            # Modelin sectigi id'ler kayda cevriliyor. Gosterilmemis id DUSER —
+            # prompt "sayi uydurma" diyor ama prompt bir RICA; kod dogruluyor.
+            #
+            # BUTUN turlarda getirilenlere bakiliyor, yalnizca sonuncusuna DEGIL.
+            # Olculdu (09-17): ajan cevabindaki 5 eserin ikisini 1. turdan cekmisti.
+            # Sadece son aramaya bakan bir dogrulama o ikisini dusurur ve ustelik
+            # 'uydurma_id' olarak sayar — modele GOSTERILMIS bir kaydi modelin
+            # uydurmasi diye raporlamak, teshisi yanlis yere cevirir.
+            oneriler = [getirilen[i] for i in tur.secilen if i in getirilen]
+            kayit["secilen"] = tur.secilen
+            kayit["uydurma_id"] = len(tur.secilen) - len(oneriler)
+            if kayit["uydurma_id"]:
+                log.warning("tur %d: %d id gosterilmemis, dusuruldu",
+                            tur_no, kayit["uydurma_id"])
+            return {"cevap": tur.cevap, "oneriler": oneriler,
+                    "turlar": turlar, "durma_sebebi": "cevap"}
 
         # Gun 0'in bulgusu BURADA uygulaniyor (dosya basina bak): ayni cagri ikinci
         # kez calistirilmaz. Sebep gozlem olarak donuyor ki ajan hamlesini degistirsin.
@@ -253,6 +303,14 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
         else:
             gorulen_cagri.add(imza)
             sonuc, yapisal = _arac_calistir(tur.arac, tur.args)
+            # Hard cap yolu icin birikim: ayni kayit iki turda da gelebilir, ILK
+            # gorulme sirasi korunuyor (setdefault, dict 3.7'den beri sirali).
+            for k in (yapisal or []):
+                getirilen.setdefault(k["_idx"], k)
+            # Turun getirdikleri kayda giriyor: olcum "hedef HERHANGI bir turda
+            # yuzeye cikti mi" diye soracak ve bunu "ajan onu SECTI mi"den ayirmak
+            # zorunda (kazanc retrieval-dan mi, tekrar denemeden mi, secimden mi).
+            kayit["getirilen_idx"] = [k["_idx"] for k in (yapisal or [])]
         kayit["gozlem_krk"] = len(sonuc)        # gozlemin baglama getirdigi yuk
 
         # IZ: normal aramada durum.iz() kurar (tepe skor + basliklar oradan gelir).
@@ -282,7 +340,14 @@ def dongu(sorgu: str, hard_cap: int = HARD_CAP, pencere: int = durum.PENCERE) ->
 
         d.tur_ekle(tur.model_dump(), sonuc, iz_satiri)
 
-    return {"cevap": None, "turlar": turlar, "durma_sebebi": "hard_cap"}
+    # Hard cap: model hic "cevap" demedi, yani hic secim yapmadi. Kullanici 6 tur
+    # sonunda bos ekran gormesin diye elindekiler donuyor.
+    #
+    # SIRA = ILK GORULME, skor DEGIL. getirilen zaten o sirada (setdefault + dict
+    # sirali). Skora gore dizmek farkli SORGULARIN kosinuslerini kiyaslamak olurdu;
+    # Gun 0'da olculdu: o sayi kaliteyi degil sorgu zorlugunu tasiyor (AUC 0.500).
+    return {"cevap": None, "oneriler": list(getirilen.values())[:5],
+            "turlar": turlar, "durma_sebebi": "hard_cap"}
 
 
 if __name__ == "__main__":
@@ -315,5 +380,10 @@ if __name__ == "__main__":
             # Kapi akisi yonetmiyor; burada SADECE gorunur olsun diye basiliyor.
             print(f"     kapi: {'yeterli' if t['kapi_yeterli'] else 'YETERSIZ'}"
                   f" — {t['kapi_gerekce']}  [kayit; akisi etkilemiyor]")
+    print("\nAJANIN LISTESI (oneriler):")
+    for i, r in enumerate(sonuc["oneriler"], 1):
+        print(f"  {i}. [{r['_idx']}] {r['baslik']} ({r['tur']})  skor={r['_skor']:.3f}")
+    if not sonuc["oneriler"]:
+        print("  (bos)")
     print(f"\nCEVAP:\n{sonuc['cevap']}")
     print(f"\n{llm.sayac.ozet()}")
