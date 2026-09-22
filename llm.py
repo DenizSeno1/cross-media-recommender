@@ -111,6 +111,25 @@ def cagir(gecmis, temperature=None):
 
             veri = cevap.json()
             sayac.ekle(veri.get("usageMetadata", {}))
+
+            # HTTP 200 ama 'candidates' YOK. Iki ayri durum; ayirmadan davranmak ya
+            # kotayi bosa harcar ya gecici hatayi olumcul yapar — 429/5xx ayriminin
+            # (yukarida) bu yoldaki hali:
+            #   promptFeedback.blockReason VAR -> istek engellendi, tekrar denemek
+            #       ayni sonucu verir, hemen firlat.
+            #   yoksa -> gecici bos cevap. Olculdu 2026-09-18: ayni prompt saniyeler
+            #       sonra normal dondu. Bunu olumcul saymak 60 sorguluk ajan kosusunda
+            #       rastgele sorgu kaybettiriyordu (3 sorgunun 1'i).
+            if "candidates" not in veri:
+                engel = veri.get("promptFeedback", {}).get("blockReason")
+                if engel:
+                    raise LLMHatasi(f"istek engellendi: {engel}")
+                son_hata = f"cevapta 'candidates' yok (anahtarlar: {list(veri)})"
+                bekleme = config.BACKOFF_TABAN ** (deneme + 1)
+                logger.warning("%s, %s sn sonra tekrar", son_hata, bekleme)
+                time.sleep(bekleme)
+                continue
+
             metin = veri["candidates"][0]["content"]["parts"][0]["text"]
             logger.info("cagri ok | %.2f sn | %s", gecen, sayac.ozet())
             return metin

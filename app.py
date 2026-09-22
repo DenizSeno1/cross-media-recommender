@@ -8,11 +8,14 @@ Kosmak:  streamlit run faz4/faz4_gun12_15/app.py
 """
 
 import hashlib
+import inspect
 import io
+import time
 
 import streamlit as st
 
 import config
+import dongu
 import llm
 import oneri
 import retrieval
@@ -96,13 +99,27 @@ with st.sidebar:
                    f"{int(paket[1].sum())} kayit elendi (izlenen seriler)")
 
     st.header("Motor")
+    # AJAN MODU (2026-09-22 karari): varsayilan ajansiz + rerank; ajan GORUNUR bir anahtar.
+    # Ajan acikken medya / k / rerank kontrolleri KILITLI: ajan olculdugu haliyle kosar
+    # (medyayi kendisi secer, "en iyi 5", rerank = getir()'in varsayilani). Kontrolleri
+    # ajana iletmek prompt'u degistirir -> 41/60 artik o ajanin sayisi olmaz.
+    ajan_modu = st.toggle("Ajan modu (deneysel)", value=False,
+                          help="Olculdu: 33/60 -> 41/60 (11/3, p=0.057 — kanitli degil), "
+                               "medyan bekleme 20 sn -> 69 sn, ~5 LLM cagrisi.")
     medya_sec = st.selectbox("Medya", ["hepsi", "anime", "film", "kitap"], index=0,
+                             disabled=ajan_modu,
                              help="Cross-media: 'anime' sec -> sadece anime; 'film' -> Monster gibi film")
-    k = st.slider("Kac oneri (k)", 1, 10, config.TOP_K)
-    rerank = st.checkbox("Rerank (cross-encoder)", value=config.RERANK_AKTIF,
-                         help="recall@5'i ~2x yapar AMA CPU'da dakikalarca surer / 4GB GPU'da VRAM sikisir. Deneysel.")
-    if rerank:
-        st.warning("Rerank acik: CPU'da her sorgu dakikalarca surebilir.")
+    k = st.slider("Kac oneri (k)", 1, 10, config.TOP_K, disabled=ajan_modu)
+    rerank = st.checkbox("Rerank (cross-encoder)", value=config.RERANK_AKTIF, disabled=ajan_modu,
+                         help="Olculdu: isabet@5 23/60 -> 33/60 (p=0.006).")
+    cihaz = "GPU" if retrieval.CIHAZ == "cuda" else "CPU"
+    if ajan_modu:
+        st.caption("Ajan medyayi ve kapsami sorgudan kendisi anlar · 5 oneri · "
+                   f"rerank {cihaz}'da her arama turunda.")
+    elif rerank:
+        st.caption(f"Rerank {cihaz}'da calisiyor"
+                   + (" (olculen medyan ~20 sn/sorgu)." if cihaz == "GPU"
+                      else " — GPU yok, her sorgu dakikalarca surebilir."))
 
 # --- ana: sorgu formu (form -> her tus vurusunda degil, gonderince kosar) ---
 with st.form("sorgu_form"):
@@ -132,6 +149,24 @@ if gonder and (sorgu.strip() or profil_modu):
         with st.spinner("Zevk adalarindan seciliyor (LLM cagrisi: sadece aciklama)..."):
             sonuc = oneri.oneri_profilden(aktif, k=k, medya=medya)
         st.info("Sorgusuz mod: oneriler dogrudan zevk adalarindan, her adadan sirayla.")
+    elif ajan_modu:
+        if aktif is not None:
+            st.warning("Ajan modu kisisellestirmeyi henuz kullanmiyor — MAL profilin bu "
+                       "sorguya uygulanmadi (Faz 6).")
+        try:
+            with st.spinner("Ajan calisiyor: arama turlari + secim (olculen medyan ~1 dk)..."):
+                basla = time.perf_counter()
+                ham = dongu.dongu(sorgu)
+                ajan_sn = time.perf_counter() - basla   # kullanicinin GERCEK beklemesi
+        except Exception as h:       # 09-18: PROHIBITED_CONTENT tam bu yoldan geldi
+            st.error(f"Ajan cevap uretemedi ({type(h).__name__}: {h}). Ajan modunu "
+                     "kapatip ayni sorguyu dene.")
+            st.stop()
+        cevap = ham["cevap"] or ("Ajan tur sinirina dayandi ve secim yapmadi; "
+                                 "ilk gorulen kayitlar gosteriliyor.")
+        sonuc = {"sorgu": sorgu, "oneriler": ham["oneriler"], "aciklama": cevap,
+                 "turlar": ham["turlar"], "durma_sebebi": ham["durma_sebebi"],
+                 "sure_sn": ajan_sn}
     else:
         with st.spinner("HyDE -> retrieval -> aciklama..."):
             sonuc = oneri.oneri(sorgu, k=k, medya=medya, rerank=rerank, profil_paketi=aktif)
@@ -145,15 +180,28 @@ if gonder and (sorgu.strip() or profil_modu):
         etiket = "Daraltilmis sorgu (LLM yeniden yazdi)" if daraltildi else "Aktif sorgu"
         st.caption(f"{etiket}: {sonuc['sorgu']}")
 
+    ajan_sonucu = "turlar" in sonuc
+    if ajan_sonucu:
+        # Ajanin araci getir()'e rerank GECMIYOR -> olcek getir()'in KENDI varsayilani.
+        # Checkbox'a ya da config'e bakmak yanlis olurdu: varsayilan import anında
+        # baglaniyor (09-18, rerank_dogrula ile ayni gerekce).
+        ajan_rerank = inspect.signature(retrieval.getir).parameters["rerank"].default
+
     st.subheader("Oneriler")
     for r in sonuc["oneriler"]:
         # C9: skorun HANGI olcek oldugunu yaz. rerank acikken _skor cross-encoder
         # skoru (0.0X bandi), kapaliyken kosinus (0.9 bandi). Ayni ismi tasiyan iki
         # ayri olcek, disaridan bakan "sistem bozuk" diye okuyor (09-05, dis inceleme).
-        olcek = "rerank" if (rerank and not profil_modu) else "kosinus"
+        if ajan_sonucu:
+            # Ajanin kayitlari araclar._getir_kirp bicimli: baslik/tur/link hazir.
+            olcek = "rerank" if ajan_rerank else "kosinus"
+            baslik, link, medya_adi = r["baslik"], r["link"], r["tur"]
+        else:
+            olcek = "rerank" if (rerank and not profil_modu) else "kosinus"
+            baslik, link, medya_adi = veri.baslik(r), veri.link(r), r["media"]
         ada = f"  ·  ada `{r['_ada']}`" if "_ada" in r else ""
         st.markdown(
-            f"**[{veri.baslik(r)}]({veri.link(r)})**  ·  `{r['media']}`  ·  "
+            f"**[{baslik}]({link})**  ·  `{medya_adi}`  ·  "
             f"{olcek} `{r['_skor']:.3f}`{ada}"
         )
     if not sonuc["oneriler"]:
@@ -162,6 +210,25 @@ if gonder and (sorgu.strip() or profil_modu):
     st.subheader("Neden bu liste?")
     st.write(sonuc["aciklama"])
     st.caption(f"LLM: {llm.sayac.ozet()}")
+
+    # Ajan ne yapti — GORUNUR olsun diye (karar: sure, tur, her turun aramasi, LLM cagrisi).
+    if ajan_sonucu:
+        turlar = sonuc["turlar"]
+        aramalar = [t for t in turlar if t["arac"]]
+        # Sure DUVAR SAATI: turlarin sure_sn toplami degil — cevap turunun LLM cagrisi da
+        # kullanicinin beklemesi (kor review 09-22, hata 1).
+        st.caption(f"Ajan: {len(aramalar)} arama · {len(turlar)} tur · {sonuc['sure_sn']:.1f} sn · "
+                   f"durma: {sonuc['durma_sebebi']} · {llm.sayac.cagri} LLM cagrisi")
+        with st.expander("Ajanin turlari"):
+            # Arac cagiran turlar, POZISYONA gore degil: hard_cap yolunda son tur da
+            # bir aramadir (kor review 09-22, hata 2).
+            for t in aramalar:
+                a = t["args"]
+                ne = ("TEKRAR — calistirilmadi" if t.get("tekrar")
+                      else f"{len(t.get('getirilen_idx', []))} kayit")
+                st.markdown(f"**tur {t['no']}** · `{t['arac']}`(sorgu=\"{a.get('sorgu', '')}\", "
+                            f"medya={a.get('medya', 'hepsi')}) → {ne} · {t['sure_sn']:.1f} sn")
+                st.caption(f"dusunce: {t['dusunce']}")
 
     # Daraltilacak sorguyu OTURUMA yaz (form asagida, bu blogun DISINDA).
     if profil_modu:

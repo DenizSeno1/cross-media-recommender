@@ -119,8 +119,13 @@ python eval.py
 python deneyler/holdout.py
 ```
 
-`eval.py` retrieval'ı ölçer (recall@k + MRR, 23 sorguluk altın set); `deneyler/holdout.py` öneri
+`eval.py` retrieval'ı ölçer (recall@k + MRR, **60 sorgu**luk altın set); `deneyler/holdout.py` öneri
 kalitesini ölçer (tut-bırak, rastgele tabanlı).
+
+> **Aşağıdaki bütün ölçüm sayıları 23 sorguluk eski set'ten.** Set 60'a çıkarıldı ama
+> ölçüm tekrarlanmadı — üstelik yeni 37 sorgunun dondurulmuş HyDE pusulası da yok,
+> yani bugün koşulacak ilk `eval.py` **taban** sayılmalı, kıyas ondan sonra başlar.
+> `eval.py` bunu koşum başında uyarı olarak basıyor.
 
 ---
 
@@ -165,7 +170,9 @@ corpus'uydu). Canlı API'den beslenen bir eval, ölçtüğü şeyi değiştirir:
 
 ## Ölçüm
 
-Altın set 23 sorgu (18 anime + 5 film), franchise düzeyinde eşleşme.
+Altın set **ölçüm anında** 23 sorgu (18 anime + 5 film), franchise düzeyinde eşleşme.
+Set o zamandan beri 60'a çıktı (20 anime + 20 film + 20 kitap); bu bölümdeki sayılar
+yeni set'le **tekrarlanmadı**.
 **Gürültü tabanı ±0.043** — 23 sorguda tek bir sorgunun yer değiştirmesi bu kadar oynatıyor,
 bunun altındaki hiçbir fark okunmaz.
 

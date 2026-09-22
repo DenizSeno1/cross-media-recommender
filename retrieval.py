@@ -47,8 +47,15 @@ def _hazirla():
     global _model, _V, _corpus, _belgeler
     if _model is None:
         _model = SentenceTransformer(config.BI_MODEL, device=CIHAZ)
+        # Token siniri modelin varsayilanina birakilmaz (bkz. config.MAX_SEQ_LENGTH):
+        # bge-m3 8192 okur, e5 512 — model karsilastirmasinda ikinci degisken olurdu.
+        _model.max_seq_length = config.MAX_SEQ_LENGTH
         if CIHAZ == "cuda":
             _model = _model.half()          # fp16: reranker ile birlikte 4GB'a sigsin
+    # HER cagrida, yalnizca yuklemede degil: model singleton'da bir kez kaliyor ama
+    # config.BI_MODEL sonradan degistirilebilir. Degisirse onekler ve cache adi YENI
+    # modele, vektorler ESKI modele ait olur — patlamaz, sadece yanlis olcer.
+    model_dogrula(_model)
     if _corpus is None:
         _corpus = veri.corpus_yukle()
         # Demo paketinde sinopsis yok -> belge() cagrilamaz; vektorler zaten hazir.
@@ -56,6 +63,19 @@ def _hazirla():
     if _V is None:
         _V = _demo_index(len(_corpus)) if config.DEMO else _index(_belgeler, _model)
     return _model, _V, _corpus, _belgeler
+
+
+def model_dogrula(model) -> None:
+    """Yuklu modelin kimligi config.BI_MODEL mi? Degilse RuntimeError.
+
+    Kimlik modelin KENDISINDEN okunur (model_card_data.base_model = yuklenen hub adi),
+    config'ten degil: config'i config'le karsilastiran bir denetim hep yesil yanar."""
+    yuklu = model.model_card_data.base_model
+    if yuklu != config.BI_MODEL:
+        raise RuntimeError(
+            f"yuklu model {yuklu!r} ama config.BI_MODEL {config.BI_MODEL!r}. Ayni surecte "
+            f"model degistirilemez: vektorler ve onekler farkli modellere ait olurdu. "
+            f"Her model icin ayri surec kos.")
 
 
 def _medya_maskeleri(corpus):
@@ -129,6 +149,22 @@ def _demo_index(n_kayit: int):
     return V
 
 
+def _index_yolu(belgeler):
+    """Index cache dosyasinin yolu: model adi + BELGELERIN ICERIK HASH'i.
+    Ad ve imza hesabi 2026-09-16'da DEGISMEDI — yalnizca fonksiyona alindi ki olcum
+    okunan dosyanin adini basabilsin (mevcut e5-large cache'i okunmaya devam ediyor)."""
+    imza = hashlib.sha1(chr(10).join(belgeler).encode("utf-8")).hexdigest()[:10]
+    return config.CACHE / f"V_{config.BI_MODEL.split('/')[-1]}_{imza}.npy"
+
+
+def _gom(belgeler, model):
+    """Belgeleri URUNUN onekiyle gom. _index ve olcum AYNI cagriyi kullanir (A13):
+    gomme suresini olcen deney kendi encode'unu yazsaydi olctugu sey urunun gommesi olmazdi."""
+    _, belge_oneki = config.onekler(config.BI_MODEL)
+    return model.encode([belge_oneki + b for b in belgeler],
+                        normalize_embeddings=True, show_progress_bar=True)
+
+
 def _index(belgeler, model):
     """Birlesik index'i cache'ten yukle, yoksa kur ve yaz (config.CACHE, paketin kendi cache'i).
 
@@ -139,15 +175,13 @@ def _index(belgeler, model):
     # degisip sayi ayni kalabilir (A7'de tam bu oldu, MAL metni ayni 7807 kayda yazildi) ->
     # eski vektorler sessizce okunur, "fark yok" denir. Hash'te bu imkansiz; ayrica iki
     # varyantin cache'i yan yana durur, gecis bedava.
-    imza = hashlib.sha1(chr(10).join(belgeler).encode("utf-8")).hexdigest()[:10]
-    yol = config.CACHE / f"V_{config.BI_MODEL.split('/')[-1]}_{imza}.npy"
+    yol = _index_yolu(belgeler)
     if yol.exists():
         V = np.load(yol)
         print(f"index cache'ten: {yol.name} {V.shape}")
         return V
-    print(f"index kuruluyor ({len(belgeler)} belge, e5-large, CPU'da birkac dk)...")
-    V = model.encode(["passage: " + b for b in belgeler],
-                     normalize_embeddings=True, show_progress_bar=True)
+    print(f"index kuruluyor ({len(belgeler)} belge, {config.BI_MODEL}, CPU'da birkac dk)...")
+    V = _gom(belgeler, model)
     np.save(yol, V)
     print(f"index yazildi: {yol.name} {V.shape}")
     return V
@@ -207,7 +241,8 @@ def _hyde_vektor(sorgu: str, model, n: int, cache: bool = False,
         if cache:
             config.HYDE_CACHE.mkdir(parents=True, exist_ok=True)
             yol.write_text(json.dumps(sahteler, ensure_ascii=False), encoding="utf-8")
-    vektorler = [model.encode("query: " + s, normalize_embeddings=True) for s in sahteler]
+    sorgu_oneki, _ = config.onekler(config.BI_MODEL)
+    vektorler = [model.encode(sorgu_oneki + s, normalize_embeddings=True) for s in sahteler]
     ortalama = np.mean(vektorler, axis=0)
     norm = np.linalg.norm(ortalama)
     q = ortalama / norm if norm > 0 else ortalama
@@ -222,15 +257,27 @@ def _hyde_vektor(sorgu: str, model, n: int, cache: bool = False,
     # soner). Bu olcum tam olarak o kuralin sinavi.
     #
     # (2026-09-05: ELLE listesindeydi, Deniz'in istegiyle mentor yazdi.)
-    # Ham sorgu YUKARIDAKIYLE AYNI bicimde gomuluyor ("query:" onek + normalize):
+    # Ham sorgu YUKARIDAKIYLE AYNI bicimde gomuluyor (modelin sorgu oneki + normalize):
     # e5 asimetrik bir model, sorgu ve belge farkli rollerde; bicim tutmazsa cipa
     # pusulayi duzeltmez, baska bir mahalleye tasir.
     # Harman profil.harmanla ile — ayni sekil, ikinci kez yazilmiyor.
     if cipa > 0:
-        ham = model.encode("query: " + sorgu, normalize_embeddings=True)
+        ham = model.encode(sorgu_oneki + sorgu, normalize_embeddings=True)
         q = profil.harmanla(q, ham, cipa)
 
     return q, sahteler[0]
+
+
+def _pusula(sorgu: str, model, hyde_n: int, hyde_cache: bool,
+            cipa: float) -> tuple[np.ndarray, str]:
+    """getir()'in 1. adimi: sorgu vektoru + rerank'e gidecek metin.
+
+    Ayri fonksiyon cunku olcum de AYNI pusulaya ihtiyac duyuyor (deney_gomme_modeli'nin
+    skor bandi): kopyasini yazmak A13'un tekrari olurdu."""
+    if config.HYDE_AKTIF:
+        return _hyde_vektor(sorgu, model, hyde_n, cache=hyde_cache, cipa=cipa)
+    sorgu_oneki, _ = config.onekler(config.BI_MODEL)
+    return model.encode(sorgu_oneki + sorgu, normalize_embeddings=True), sorgu
 
 
 def _yeniden_sirala(sorgu_metni, aday_idx, belgeler, reranker, k):
@@ -267,12 +314,8 @@ def getir(sorgu: str, k: int = config.TOP_K, medya: str | None = None,
         o varyans urunun gercek bir ozelligi — dondurursak kendimize yalan soyleriz."""
     model, V, corpus, belgeler = _hazirla()
 
-    # 1) HyDE: sahte belge(ler) pusula -> query prefix ile gom (e5 asimetrik, sorgu rolu 'query:')
-    if config.HYDE_AKTIF:
-        q, sahte = _hyde_vektor(sorgu, model, hyde_n, cache=hyde_cache, cipa=cipa)
-    else:
-        q = model.encode("query: " + sorgu, normalize_embeddings=True)
-        sahte = sorgu
+    # 1) HyDE: sahte belge(ler) pusula -> modelin sorgu onekiyle gom (bkz. config.ONEKLER)
+    q, sahte = _pusula(sorgu, model, hyde_n, hyde_cache, cipa)
 
     # 1b) kisisellestirme: pusulaya EN YAKIN zevk adasini sec, onunla harmanla.
     #     Neden en yakin ada: tek ortalama profil sorguyu baska yere CEKER (30 derece sapma

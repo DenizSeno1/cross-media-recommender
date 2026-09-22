@@ -183,6 +183,59 @@ def gold_dogrula(altin_set=ALTIN_SET):
     print(f"gold dogrulandi: {sum(len(b) for _, b in altin_set)} hedef, hepsi corpus'ta")
 
 
+def pusula_dogrula(altin_set=ALTIN_SET, hyde_n=None, hyde_cache=True):
+    """Her gold sorgusunun DONMUS HyDE pusulasi var mi? Yoksa o sorgu her kosuda
+    yeniden uydurulur ve olcum TEKRARLANABILIR OLMAZ.
+
+    gold_dogrula'nin kardesi. O "hedef corpus'ta var mi" diye soruyor, bu "pusula
+    donmus mu" diye soruyor. Ikisi de ayni aileden hatayi yakaliyor: patlamayan,
+    sadece sayiyi kaydiran hata.
+
+    NEDEN GEREKLI (olculdu 2026-09-14): gold set 23 -> 60'a cikarilirken yeni 37
+    vaka icin cache uretilmedi — cache ancak eval kosunca doluyor, o kosum hic
+    yapilmadi. Yani `python eval.py` su an 23 vakayi donmus, 37 vakayi TAZE
+    uydurulmus pusulayla olcuyor. Iki kosu ayni sonucu vermiyor ve aradaki farkin
+    degisiklikten mi yoksa Gemini'nin o gunku icadindan mi geldigi ayirt edilemiyor.
+    .gitignore "eval'in ayni sonucu vermesi bu dosyalara bagli" diyor; o garanti
+    60 vakanin 23'unde gecerliydi ve bunu soyleyen tek bir satir yoktu.
+
+    NEDEN SystemExit DEGIL (gold_dogrula'dan ayrildigi yer): bozuk gold'da recall
+    o sorguda ASLA >0 olamaz, kosmanin anlami yok. Eksik cache'te ise kosum gecerli
+    sayi uretir — bozulan sey KIYASLANABILIRLIK. Ustelik cache'i dolduran sey tam
+    da bu kosumun kendisi (hyde_cache=True eksikleri uretip diske yaziyor);
+    engellemek cache'in hic dolmamasi demek olurdu. O yuzden uyarir, durdurmaz.
+
+    Donus: donmus pusulasi olmayan sorgu sayisi.
+    """
+    if not config.HYDE_AKTIF:
+        return 0                       # pusula yok ki donmus olsun
+    if not hyde_cache:
+        # --no-cache zaten BILEREK taze cekilis (gurultu tabani olcumu). Uyarmak
+        # dogru olani yapan kullaniciyi azarlamak olur.
+        print("pusula: --no-cache -> her sorgu taze cekilis (gurultu tabani modu)")
+        return 0
+
+    n = config.HYDE_N_ORNEK if hyde_n is None else hyde_n
+    eksik = [sorgu for sorgu, _ in altin_set
+             if not retrieval._hyde_cache_yolu(sorgu, n).exists()]
+
+    if not eksik:
+        print(f"pusula dogrulandi: {len(altin_set)} sorgunun hepsinde donmus HyDE var (n={n})")
+        return 0
+
+    print(f"  ⚠️  DONMUS PUSULA EKSIK: {len(altin_set)} gold sorgusunun {len(eksik)} tanesinde"
+          f" donmus HyDE yok (n={n}).")
+    print("      Bu kosum TEKRARLANABILIR DEGIL: o sorgular simdi yeniden uydurulacak,")
+    print("      cache'e yazilacak ve BUNDAN SONRAKI kosumlar donmus olacak. Yani bu")
+    print("      kosumun sayilari ONCEKI hicbir olcumle kiyaslanamaz — kiyas icin bu")
+    print("      kosumu TABAN kabul et, karsilastirmayi bir sonrakinden itibaren yap.")
+    for sorgu in eksik[:5]:
+        print(f"        - {sorgu[:70]}")
+    if len(eksik) > 5:
+        print(f"        ... ve {len(eksik) - 5} sorgu daha")
+    return len(eksik)
+
+
 def isabet_at_k(altin_set=ALTIN_SET, k_listesi=(5, 10), hyde_cache=True,
                 kota=True, tekillestir=True, franchise=True, **getir_ayar):
     """URUN yolundan isabet: her k icin getir(k=k) CAGIRIR, gold o listede mi?
@@ -377,6 +430,15 @@ def karsilastir(ad_a, ayar_a, ad_b, ayar_b, altin_set=ALTIN_SET, k=50, franchise
     """Iki konfigi sorgu bazinda karsilastir, isaret testi + Delta-sira bas."""
     a, b = (siralar(altin_set, k, franchise, **ayar_a),
             siralar(altin_set, k, franchise, **ayar_b))
+    return karsilastir_siralar(ad_a, a, ad_b, b, altin_set)
+
+
+def karsilastir_siralar(ad_a, a, ad_b, b, altin_set=ALTIN_SET):
+    """karsilastir()'in karar/rapor yarisi, sira listeleri HAZIR verildiginde.
+
+    Ayri cunku siralar() iki konfigi AYNI surecte kosuyor; farkli gomme modelleri ise ayri
+    surecte kosmak ZORUNDA (retrieval.model_dogrula). O durumda siralar her surecte ayri
+    hesaplanip diske yazilir, karar burada verilir — isaret testi ikinci kez yazilmaz."""
     print()
     print(f"{ad_a}  ->  {ad_b}")
     print(f"{'sorgu':<50} {'once':>6} {'sonra':>6}   ne oldu")
@@ -404,7 +466,7 @@ def karsilastir(ad_a, ayar_a, ad_b, ayar_b, altin_set=ALTIN_SET, k=50, franchise
 
 
 if __name__ == "__main__":
-    p = argparse.ArgumentParser(description="Retrieval eval (11 sorgu altin set)")
+    p = argparse.ArgumentParser(description=f"Retrieval eval ({len(ALTIN_SET)} sorgu altin set)")
     p.add_argument("--rerank", action="store_true", help="cross-encoder rerank ac")
     p.add_argument("--medya", default=None, choices=["anime", "film", "kitap"],
                    help="medya filtresi (Gun 10-11 ile kiyas icin: anime)")
@@ -438,6 +500,7 @@ if __name__ == "__main__":
         config.ANIME_KAYNAK = a.kaynak  # belge() ve dolayisiyla index hash'i buna bagli
 
     gold_dogrula()
+    pusula_dogrula(hyde_n=a.hyde_n, hyde_cache=not a.no_cache)
     degerlendir(k_listesi=k_listesi, rerank=a.rerank, medya=a.medya,
                 hyde_n=a.hyde_n, cipa=a.cipa, hyde_cache=not a.no_cache,
                 kota=not a.kotasiz, tekillestir=not a.tekilsiz,

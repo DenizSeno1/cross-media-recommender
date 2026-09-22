@@ -160,10 +160,16 @@ def _metin(sonuclar: list[dict]) -> str:
 
     Bicim karari senin. Aklinda tut: bu metin HER TURDA baglama ekleniyor —
     5 sonuc x 10 tur = ajanin onunde 50 kayit. Kisa tut.
+
+    BASTAKI [sayi] KAYDIN KIMLIGI (2026-09-18, D karari). Model cevabinda hangi
+    eserleri sectigini bu sayilarla bildiriyor (dongu.Tur.secilen). Onceden modelin
+    bir kayda REFERANS VEREBILECEGI hicbir sey yoktu: cevap serbest metindi ve
+    "ajanin listesi" hicbir yerde kayitli degildi. Basligi eslestirmek alternatifti —
+    model basligi cevirdigi/kisalttigi icin kirilgan.
     """
     metin = ""
     for kayit in sonuclar:
-        metin += f"{kayit['baslik']} ({kayit['tur']})\n"
+        metin += f"[{kayit['_idx']}] {kayit['baslik']} ({kayit['tur']})\n"
         metin += f"{kayit['aciklama']}\n"
         metin += f"Skor: {kayit['_skor']:.2f}  Link: {kayit['link']}\n\n"
     return metin.strip()

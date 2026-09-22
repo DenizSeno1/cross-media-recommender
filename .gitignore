@@ -21,7 +21,12 @@ profil.txt
 
 # NOT: cache/hyde/ BILEREK repoda.
 # Olcum dondurulur, urun rastgele kalir: eval.py'nin ayni sonucu vermesi
-# bu 47 dosyaya bagli. Silinirse eval yeniden uretir ama skorlar oynar.
+# bu dosyalara bagli. Silinirse eval yeniden uretir ama skorlar oynar.
+#
+# DIKKAT (2026-09-14): bu garanti su an KISMI. Gold set 23 -> 60'a cikarildi,
+# yeni 37 sorgu icin pusula uretilmedi -> onlar her kosuda yeniden uyduruluyor.
+# eval.pusula_dogrula() kosum basinda bunu uyari olarak basiyor; ilk tam kosum
+# eksikleri uretip donduracak.
 
 # makineye ozel: venv yolu baska bilgisayarda tutmaz
 .vscode/
@@ -32,3 +37,9 @@ profil.txt
 uml/
 kod-haritasi-cikti/
 kod-haritasi.yaml
+
+# Claude Code / mentor yerel dosyalari — depo disinda kalir
+CLAUDE.md
+AGENTS.md
+.claude/
+.agents/
