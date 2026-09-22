@@ -44,6 +44,31 @@ DEMO = (os.environ.get("DEMO_MODU", "").lower() in ("1", "true", "yes")
 BI_MODEL = "intfloat/multilingual-e5-large"        # bi-encoder retrieval
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3"           # cross-encoder rerank
 
+# Bi-encoder ONEKLERI modele baglidir (2026-09-16). e5 asimetrik egitildi: sorgu "query: ",
+# belge "passage: " ile gomulur. bge-m3 onek OLMADAN egitildi. Onekler eskiden retrieval.py'de
+# dort yerde sabit yaziliydi -> BI_MODEL degisince sessizce yanlis onekle gomulurdu.
+# Tabloda olmayan model RAISE eder: e5 onekine sessizce dusmek tam o hatanin kendisi olurdu.
+ONEKLER = {                                        # model -> (sorgu_oneki, belge_oneki)
+    "intfloat/multilingual-e5-large": ("query: ", "passage: "),
+    "intfloat/multilingual-e5-base": ("query: ", "passage: "),
+    "BAAI/bge-m3": ("", ""),
+}
+
+
+def onekler(model_adi: str) -> tuple[str, str]:
+    """(sorgu_oneki, belge_oneki). Tabloda olmayan model icin ValueError — varsayilan YOK."""
+    if model_adi not in ONEKLER:
+        raise ValueError(f"onek tablosunda olmayan model: {model_adi!r}. "
+                         f"Bilinenler: {sorted(ONEKLER)}. Yeni model icin config.ONEKLER'e ekle.")
+    return ONEKLER[model_adi]
+
+
+# Gomme metninin token siniri. e5 ailesinin siniri 512; bge-m3'un varsayilani 8192.
+# Esitlenmezse model karsilastirmasinda IKINCI bir degisken oynar: uzun sinopsisi bge-m3
+# sonuna kadar okur, e5 kirpar. e5 icin no-op — iki e5 modelinin varsayilani zaten 512
+# (sentence_bert_config.json, olculdu 2026-09-16).
+MAX_SEQ_LENGTH = 512
+
 # --- retrieval parametreleri ---
 TOP_K = 5                                          # kullaniciya kac oneri
 ADAY = 50                                          # HyDE aday havuzu (rerank girdisi)

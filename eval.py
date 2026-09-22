@@ -430,6 +430,15 @@ def karsilastir(ad_a, ayar_a, ad_b, ayar_b, altin_set=ALTIN_SET, k=50, franchise
     """Iki konfigi sorgu bazinda karsilastir, isaret testi + Delta-sira bas."""
     a, b = (siralar(altin_set, k, franchise, **ayar_a),
             siralar(altin_set, k, franchise, **ayar_b))
+    return karsilastir_siralar(ad_a, a, ad_b, b, altin_set)
+
+
+def karsilastir_siralar(ad_a, a, ad_b, b, altin_set=ALTIN_SET):
+    """karsilastir()'in karar/rapor yarisi, sira listeleri HAZIR verildiginde.
+
+    Ayri cunku siralar() iki konfigi AYNI surecte kosuyor; farkli gomme modelleri ise ayri
+    surecte kosmak ZORUNDA (retrieval.model_dogrula). O durumda siralar her surecte ayri
+    hesaplanip diske yazilir, karar burada verilir — isaret testi ikinci kez yazilmaz."""
     print()
     print(f"{ad_a}  ->  {ad_b}")
     print(f"{'sorgu':<50} {'once':>6} {'sonra':>6}   ne oldu")
