@@ -37,3 +37,9 @@ profil.txt
 uml/
 kod-haritasi-cikti/
 kod-haritasi.yaml
+
+# Claude Code / mentor yerel dosyalari — depo disinda kalir
+CLAUDE.md
+AGENTS.md
+.claude/
+.agents/
